@@ -21,6 +21,9 @@
 #include "libLiFFT/mem/ComplexAoSValues.hpp"
 #ifdef WITH_CUDA
 #include "libLiFFT/libraries/cuFFT/cuFFT.hpp"
+#elif defined(WITH_CLFFT)
+#include "libLiFFT/libraries/clFFT/policies/Context.hpp"
+#include "libLiFFT/libraries/clFFT/clFFT.hpp"
 #else
 #include "libLiFFT/libraries/fftw/FFTW.hpp"
 #endif
@@ -28,7 +31,7 @@
 namespace LiFFTTest{
     // Types used for the test suite
     constexpr unsigned testNumDims = 2;
-    constexpr unsigned testSize = 2048;
+    constexpr unsigned testSize = 128;
     using TestExtents      = LiFFT::types::Vec<testNumDims>;
     using TestPrecision    = float;
     using RealType         = LiFFT::mem::RealValues<TestPrecision>;
@@ -42,6 +45,10 @@ namespace LiFFTTest{
 
     #ifdef WITH_CUDA
     using TestLibrary = LiFFT::libraries::cuFFT::CuFFT<>;
+    #elif defined(WITH_CLFFT)
+    //ContextWrapper::set(context,device);
+    using Context = LiFFT::libraries::clFFT::policies::ContextGlobal;
+    using TestLibrary = LiFFT::libraries::clFFT::ClFFT<Context>;
     #else
     using TestLibrary = LiFFT::libraries::fftw::FFTW<>;
     #endif
