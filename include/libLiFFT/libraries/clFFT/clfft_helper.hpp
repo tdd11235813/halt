@@ -111,6 +111,7 @@ inline void __clSafeCall( T err, const char *file, const int line )
                  file, line, getOpenCLErrorString( err ) );
 
         throw std::runtime_error("OpenCL Error: " + std::string(getOpenCLErrorString(err))+ " "+std::to_string(err));
+exit(err);
     }
 }
 
@@ -154,7 +155,7 @@ inline void printClDevice(cl_device_id dev_id)
 }
 
 /**
- * try to get a GPU, otherwise default device on first platform is used.
+ *
  */
 inline int findClDevice(cl_device_type devkind, cl_platform_id* platform, cl_device_id* device)
 {
