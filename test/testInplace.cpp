@@ -74,6 +74,13 @@ namespace LiFFTTest {
         LiFFT::policies::copy(aperture, baseC2CInput);
         fft(input);
         execBaseC2C();
+
+        using Extents = LiFFT::types::Vec<2>;
+        Extents idx = Extents::all(0u);
+        for(unsigned i=0; i<10; i++){
+          std::cout << output(idx) << " " << baseC2COutput(idx) << std::endl;
+          idx[0]++;
+        }
         // Inplace got some more random derivations in the low intensity regions
         checkResult(baseC2COutput, output, "C2C inPlace", CmpError(1e-3, 5e-5));
     }

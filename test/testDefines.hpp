@@ -31,7 +31,7 @@
 namespace LiFFTTest{
     // Types used for the test suite
     constexpr unsigned testNumDims = 2;
-    constexpr unsigned testSize = 128;
+    constexpr unsigned testSize = 2048;
     using TestExtents      = LiFFT::types::Vec<testNumDims>;
     using TestPrecision    = float;
     using RealType         = LiFFT::mem::RealValues<TestPrecision>;
