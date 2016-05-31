@@ -21,18 +21,18 @@ namespace policies {
       template<typename T_Src>
       void copy(cl_mem dst, T_Src src, size_t size, cl_command_queue queue) const
       {
-        clSafeCall( clEnqueueWriteBuffer(queue, dst, false, 0, size, src, 0, NULL, NULL) );
+        CHECK_CL( clEnqueueWriteBuffer(queue, dst, false, 0, size, src, 0, NULL, NULL) );
       }
       /* D2H */
       template<typename T_Dst>
       void copy(T_Dst dst, cl_mem src, size_t size, cl_command_queue queue) const
       {
-        clSafeCall( clEnqueueReadBuffer(queue, src, false, 0, size, dst, 0, NULL, NULL) );
+        CHECK_CL( clEnqueueReadBuffer(queue, src, false, 0, size, dst, 0, NULL, NULL) );
       }
       /* D2D */
       void copy(cl_mem dst, cl_mem src, size_t size, cl_command_queue queue) const
       {
-        clSafeCall( clEnqueueCopyBuffer(queue, src, dst, 0, 0, size, 0, NULL, NULL) );
+        CHECK_CL( clEnqueueCopyBuffer(queue, src, dst, 0, 0, size, 0, NULL, NULL) );
       }
 
 

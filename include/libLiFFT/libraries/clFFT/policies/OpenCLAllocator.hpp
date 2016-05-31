@@ -20,14 +20,14 @@ namespace policies {
         {
           cl_int err=0;
           cl_mem mem = clCreateBuffer( ctx, CL_MEM_READ_WRITE, memSize, NULL, &err );
-          clCheckError(err);
+          CHECK_CL(err);
           return mem;
         }
 
         void
         free(cl_mem mem) const
         {
-          clSafeCall(clReleaseMemObject(mem));
+          CHECK_CL(clReleaseMemObject(mem));
         }
     };
 

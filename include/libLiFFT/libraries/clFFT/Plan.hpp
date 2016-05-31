@@ -39,7 +39,7 @@ namespace clFFT {
           cl_int err = 0;
           ctx = context.context();
           queue = clCreateCommandQueue( ctx, context.device(), 0, &err );
-          clCheckError(err);
+          CHECK_CL(err);
         }
         Plan(Plan&& obj)
         : ctx(obj.ctx), queue(obj.queue), handle(obj.handle),
@@ -63,9 +63,9 @@ namespace clFFT {
 
         void cleanup() {
           if(queue){
-            clSafeCall(clReleaseCommandQueue( queue ));
+            CHECK_CL(clReleaseCommandQueue( queue ));
             if(handle)
-              clSafeCall(clfftDestroyPlan(&handle));
+              CHECK_CL(clfftDestroyPlan(&handle));
             queue = 0;
           }
         }

@@ -123,6 +123,6 @@ namespace clFFT {
         }
     };
 
-}  // namespace ClFFT
+}  // namespace clFFT
 }  // namespace libraries
 }  // namespace LiFFT

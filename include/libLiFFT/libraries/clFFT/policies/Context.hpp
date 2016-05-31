@@ -1,10 +1,3 @@
-/*
- * Context.hpp
- *
- *  Created on: 18.04.2016
- *      Author: gcoe02
- */
-
 #ifndef CONTEXT_HPP_
 #define CONTEXT_HPP_
 #include "../clfft_helper.hpp"
@@ -39,15 +32,15 @@ namespace policies {
       findClDevice(CL_DEVICE_TYPE_GPU, &platform, &dev);
       props[1] = (cl_context_properties)platform;
       ctx = clCreateContext(props, 1, &dev, NULL, NULL, &err);
-      clCheckError(err);
+      CHECK_CL(err);
       /* Setup clFFT. */
       clfftSetupData fftSetup;
-      clSafeCall( clfftInitSetupData(&fftSetup) );
-      clSafeCall( clfftSetup(&fftSetup) );
+      CHECK_CL( clfftInitSetupData(&fftSetup) );
+      CHECK_CL( clfftSetup(&fftSetup) );
     }
     ~ContextLocal()
     {
-      clSafeCall(clfftTeardown( ));
+      CHECK_CL(clfftTeardown( ));
       clReleaseContext( ctx );
       ctx = 0;
     }

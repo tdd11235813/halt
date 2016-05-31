@@ -94,7 +94,7 @@ namespace policies {
             else
                 throw std::runtime_error("No out device pointer");
 
-            clSafeCall( Executer()(plan.handle, plan.queue, pIn, pOut) );
+            CHECK_CL( Executer()(plan.handle, plan.queue, pIn, pOut) );
 
             if( plan.OutDevicePtr || !Output::IsDeviceMemory::value)
             {
@@ -124,7 +124,7 @@ namespace policies {
               throw std::runtime_error("No in device pointer");
 
             cl_mem pOut = pIn;
-            clSafeCall( Executer()(plan.handle, plan.queue, pIn, pOut) );
+            CHECK_CL( Executer()(plan.handle, plan.queue, pIn, pOut) );
             if( plan.InDevicePtr )
             {
                 auto pOutHost = (inOut.getDataPtr());

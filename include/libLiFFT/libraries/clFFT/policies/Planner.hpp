@@ -74,10 +74,10 @@ namespace policies {
           cldims[0] = extents[0];
           if(numDims>1) cldims[1] = extents[1];
           if(numDims>2) cldims[2] = extents[2];
-          clSafeCall( clfftCreateDefaultPlan(&plan.handle, plan.ctx, traits::Dims< T_numDims >::value, cldims) );
-          clSafeCall( clfftSetPlanPrecision(plan.handle, traits::FFTPrecision< T_Precision >::value) );
-          clSafeCall( clfftSetLayout(plan.handle, traits::FFTLayout<T_isComplexIn,T_isComplexOut>::value, traits::FFTLayout<T_isComplexOut,T_isComplexIn>::value) );
-          clSafeCall( clfftSetResultLocation(plan.handle, traits::FFTInplace<T_isInplace>::value) );
+          CHECK_CL( clfftCreateDefaultPlan(&plan.handle, plan.ctx, traits::Dims< T_numDims >::value, cldims) );
+          CHECK_CL( clfftSetPlanPrecision(plan.handle, traits::FFTPrecision< T_Precision >::value) );
+          CHECK_CL( clfftSetLayout(plan.handle, traits::FFTLayout<T_isComplexIn,T_isComplexOut>::value, traits::FFTLayout<T_isComplexOut,T_isComplexIn>::value) );
+          CHECK_CL( clfftSetResultLocation(plan.handle, traits::FFTInplace<T_isInplace>::value) );
         }
 
         void checkSize(size_t size)
