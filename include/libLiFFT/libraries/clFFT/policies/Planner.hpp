@@ -74,10 +74,22 @@ namespace policies {
           cldims[0] = extents[0];
           if(numDims>1) cldims[1] = extents[1];
           if(numDims>2) cldims[2] = extents[2];
-          CHECK_CL( clfftCreateDefaultPlan(&plan.handle, plan.ctx, traits::Dims< T_numDims >::value, cldims) );
-          CHECK_CL( clfftSetPlanPrecision(plan.handle, traits::FFTPrecision< T_Precision >::value) );
-          CHECK_CL( clfftSetLayout(plan.handle, traits::FFTLayout<T_isComplexIn,T_isComplexOut>::value, traits::FFTLayout<T_isComplexOut,T_isComplexIn>::value) );
-          CHECK_CL( clfftSetResultLocation(plan.handle, traits::FFTInplace<T_isInplace>::value) );
+          CHECK_CL( clfftCreateDefaultPlan(&plan.handle,
+                                           plan.ctx,
+                                           traits::Dims< T_numDims >::value,
+                                           cldims) );
+          CHECK_CL( clfftSetPlanPrecision(plan.handle,
+                                          traits::FFTPrecision< T_Precision >::value) );
+          CHECK_CL( clfftSetLayout(plan.handle,
+                                   traits::FFTLayout<T_isComplexIn,T_isComplexOut>::value,
+                                   traits::FFTLayout<T_isComplexOut,T_isComplexIn>::value) );
+          CHECK_CL( clfftSetResultLocation(plan.handle,
+                                           traits::FFTInplace<T_isInplace>::value) );
+          CHECK_CL(clfftBakePlan(plan.handle,
+                                 1, // number of queues
+                                 &plan.queue,
+                                 nullptr, // callback
+                                 nullptr)); // user data
         }
 
         void checkSize(size_t size)
@@ -97,12 +109,13 @@ namespace policies {
             for(unsigned i=0; i<numDims; ++i){
                 unsigned eIn = extents[i];
                 unsigned eOut = extentsOut[i];
+                // @todo check if change is needed for [last dim] / 2 or [0] / 2
                 // Same extents in all dimensions unless we have a C2R or R2C and compare the last dimension
-                bool dimOk = (eIn == eOut || (i+1 == numDims && !(isComplexIn && isComplexOut)));
+                bool dimOk = (eIn == eOut || (i == numDims-1 && !(isComplexIn && isComplexOut)));
                 // Half input size for first dimension of R2C
-                dimOk &= (isComplexIn || i+1 != numDims || eIn/2+1 == eOut);
+                dimOk &= (isComplexIn || i != numDims-1 || eIn/2+1 == eOut);
                 // Half output size for first dimension of C2R
-                dimOk &= (isComplexOut || i+1 != numDims || eIn == eOut/2+1);
+                dimOk &= (isComplexOut || i != numDims-1 || eIn == eOut/2+1);
                 if(!dimOk)
                     throw std::runtime_error("Dimension " + std::to_string(i) + ": Extents mismatch");
             }
@@ -113,7 +126,8 @@ namespace policies {
             if(useInplaceForHost && !Input::IsDeviceMemory::value && !Output::IsDeviceMemory::value){
                 size_t size = std::max(numElementsIn, numElementsOut) * sizeof(Precision);
                 checkSize(size);
-                plan.InDevicePtr.reset(alloc.malloc(size,plan.ctx));
+                plan.InDevicePtr.reset(
+                  alloc.malloc(size,plan.ctx,plan.queue));
             }else{
               /* @todo need correct sizes here,
                * R2C can be Real->cl_mem->Complex
@@ -125,9 +139,11 @@ namespace policies {
                 checkSize(inSize);
                 checkSize(outSize);
                 if(!Input::IsDeviceMemory::value)
-                    plan.InDevicePtr.reset(alloc.malloc(inSize,plan.ctx));
+                  plan.InDevicePtr.reset(
+                    alloc.malloc(inSize,plan.ctx,plan.queue));
                 if(!Output::IsDeviceMemory::value)
-                    plan.OutDevicePtr.reset(alloc.malloc(outSize,plan.ctx));
+                  plan.OutDevicePtr.reset(
+                    alloc.malloc(outSize,plan.ctx,plan.queue));
             }
             // Always use fullExtents, that is the extents of the real container for R2C/C2R
             // For C2C it does not matter
@@ -138,11 +154,12 @@ namespace policies {
         void
         operator()(T_Plan& plan, Input& inOut, const T_Allocator& alloc)
         {
-          // @todo correct size for inplace GetInplaceMemSize
-          size_t size = inOut.getNumElements() * sizeof(Precision);//policies::GetInplaceMemSize<Precision, isComplexIn, isComplexOut, numDims>::get(inOut.getFullExtents());
+          //size_t size = inOut.getNumElements() * sizeof(Precision);
+          size_t size = policies::GetInplaceMemSize<Precision, isComplexIn, isComplexOut, numDims>::get(inOut.getFullExtents());
           checkSize(size);
           if(!Input::IsDeviceMemory::value)
-              plan.InDevicePtr.reset(alloc.malloc(size,plan.ctx));
+            plan.InDevicePtr.reset(
+              alloc.malloc(size,plan.ctx,plan.queue));
           createPlan(plan, inOut.getFullExtents());
         }
     };

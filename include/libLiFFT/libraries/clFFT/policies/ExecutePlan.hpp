@@ -26,7 +26,10 @@ namespace policies {
         >
         struct Executer
         {
-          cl_int operator()(clfftPlanHandle plan, cl_command_queue queue, cl_mem in, cl_mem out)
+          cl_int operator()(clfftPlanHandle plan,
+                            cl_command_queue queue,
+                            cl_mem in,
+                            cl_mem out)
           {
             return clfftEnqueueTransform(plan, traits::Sign< T_isFwd >::value,
                 1, &queue, // queue
@@ -69,21 +72,25 @@ namespace policies {
         void
         operator()(T_Plan& plan, Input& input, Output& output, bool useInplaceForHost, const T_Copier& copy)
         {
-          printf("ExecutePlan : in + out\n");
+          printf("ExecutePlan : in + out: %s\n", isComplexIn&&isComplexOut?"C2C":isComplexIn?"C2R":"R2C");
             using LiFFT::policies::safe_ptr_cast;
             static_assert(!isInplace, "Cannot be used for inplace transforms!");
             size_t memsizeIn = sizeof(Precision)*input.getNumElements() * (isComplexIn?2:1);
             size_t memsizeOut = sizeof(Precision)*output.getNumElements() * (isComplexOut?2:1);
-
+            printf("size %zu %zu, counts %zu %zu\n", memsizeIn, memsizeOut,input.getNumElements(), output.getNumElements());
             cl_mem pIn = 0;
             if( plan.InDevicePtr )
             {
-              copy.copy(plan.InDevicePtr.get(), input.getDataPtr(), memsizeIn, plan.queue);
+              copy.copy(plan.InDevicePtr.get(),
+                        input.getDataPtr(),
+                        memsizeIn,
+                        plan.queue);
               pIn = safe_ptr_cast<cl_mem>(plan.InDevicePtr.get());
             }else if(Input::IsDeviceMemory::value)
               pIn = reinterpret_cast<cl_mem>(input.getDataPtr());
             else
               throw std::runtime_error("No in device pointer");
+
             cl_mem pOut;
             if(plan.OutDevicePtr)
                 pOut = safe_ptr_cast<cl_mem>(plan.OutDevicePtr.get());
@@ -93,42 +100,87 @@ namespace policies {
                 pOut = safe_ptr_cast<cl_mem>(plan.InDevicePtr.get());
             else
                 throw std::runtime_error("No out device pointer");
-
             CHECK_CL( Executer()(plan.handle, plan.queue, pIn, pOut) );
 
             if( plan.OutDevicePtr || !Output::IsDeviceMemory::value)
             {
               copy.copy(output.getDataPtr(), pOut, memsizeOut, plan.queue);
+              CHECK_CL(clFinish(plan.queue));
             }
+            for(size_t i=0; i<input.getNumElements(); ++i)
+              std::cout << input.getDataPtr()[i] << " | ";
+            std::cout << std::endl;
+            for(size_t i=0; i<output.getNumElements(); ++i)
+            {
+              std::cout << output.getDataPtr()[i] << " | ";
+            }
+            std::cout << std::endl;
         }
 
         template< class T_Plan, class T_Copier >
         void
         operator()(T_Plan& plan, Input& inOut, const T_Copier& copy)
         {
-          printf("ExecutePlan : inout\n");
+          throw 1; //@todo plan striding needed
+          static constexpr bool Padding = !isComplexIn || !isComplexOut;
+          printf("ExecutePlan : inout : %s\n", isComplexIn&&isComplexOut?"C2C":isComplexIn?"C2R":"R2C");
             using LiFFT::policies::safe_ptr_cast;
             static_assert(isInplace, "Must be used for inplace transforms!");
 
-            // @todo GetInplaceMemSize
-            //size_t size = policies::GetInplaceMemSize<Precision, isComplexIn, isComplexOut, numDims>::get(inOut.getFullExtents());
+            size_t size = policies::GetInplaceMemSize<Precision, isComplexIn, isComplexOut, numDims>::get(inOut.getFullExtents());
 
             cl_mem pIn = 0;
             if( plan.InDevicePtr )
             {
-                copy.copy(plan.InDevicePtr.get(), reinterpret_cast<Precision*>(inOut.getDataPtr()), inOut.getMemSize(), plan.queue);
-                pIn = safe_ptr_cast<cl_mem>(plan.InDevicePtr.get());
+              if(Padding) {
+                auto extents = inOut.getFullExtents();
+                size_t w = extents[0]*sizeof(Precision);
+                size_t h = size / w;
+                size_t pitch = (extents[0]/2+1)*2*sizeof(Precision);
+                copy.copyPitched(plan.InDevicePtr.get(),
+                                 reinterpret_cast<const void*>(inOut.getDataPtr()), //@todo cast needed?
+                                 plan.queue,
+                                 w,
+                                 h,
+                                 pitch
+                  );
+              }else{
+                copy.copy(plan.InDevicePtr.get(),
+                          inOut.getDataPtr(), //@todo cast needed?
+                          inOut.getMemSize(),
+                          plan.queue);
+              }
+              pIn = safe_ptr_cast<cl_mem>(plan.InDevicePtr.get());
             }else if(Input::IsDeviceMemory::value)
               pIn = reinterpret_cast<cl_mem>(inOut.getDataPtr());
             else
               throw std::runtime_error("No in device pointer");
 
             cl_mem pOut = pIn;
+
             CHECK_CL( Executer()(plan.handle, plan.queue, pIn, pOut) );
+
             if( plan.InDevicePtr )
             {
-                auto pOutHost = (inOut.getDataPtr());
-                copy.copy(pOutHost, pOut, inOut.getNumElements()*sizeof(Precision), plan.queue);
+              auto pOutHost = (inOut.getDataPtr());
+              if(Padding) {
+                auto extents = inOut.getFullExtents();
+                size_t w = extents[0]*sizeof(Precision);
+                size_t h = size / w;
+                size_t pitch = (extents[0]/2+1)*2*sizeof(Precision);
+                copy.copyPitched(pOutHost,
+                                 pOut,
+                                 plan.queue,
+                                 w,
+                                 h,
+                                 pitch
+                  );
+              }else{
+                copy.copy(pOutHost,
+                          pOut,
+                          inOut.getNumElements()*sizeof(Precision),
+                          plan.queue);
+              }
             }
         }
     };

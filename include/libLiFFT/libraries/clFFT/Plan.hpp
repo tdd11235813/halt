@@ -36,6 +36,7 @@ namespace clFFT {
 
         Plan()
         {
+          std::cout << "Plan: create\n";
           cl_int err = 0;
           ctx = context.context();
           queue = clCreateCommandQueue( ctx, context.device(), 0, &err );
@@ -45,6 +46,7 @@ namespace clFFT {
         : ctx(obj.ctx), queue(obj.queue), handle(obj.handle),
           InDevicePtr(std::move(obj.InDevicePtr)), OutDevicePtr(std::move(obj.OutDevicePtr))
         {
+          obj.ctx = 0;
           obj.queue = 0;
           obj.handle = 0;
         }
@@ -63,10 +65,13 @@ namespace clFFT {
 
         void cleanup() {
           if(queue){
+            std::cout << "Plan: clean\n";
             CHECK_CL(clReleaseCommandQueue( queue ));
-            if(handle)
-              CHECK_CL(clfftDestroyPlan(&handle));
             queue = 0;
+            if(handle){
+              CHECK_CL(clfftDestroyPlan(&handle));
+              handle=0;
+            }
           }
         }
         ~Plan(){
