@@ -36,7 +36,7 @@ namespace clFFT {
 
         Plan()
         {
-          std::cout << "Plan: create\n";
+          std::cout << "Plan::ctor()\n";
           cl_int err = 0;
           ctx = context.context();
           queue = clCreateCommandQueue( ctx, context.device(), 0, &err );
@@ -65,7 +65,7 @@ namespace clFFT {
 
         void cleanup() {
           if(queue){
-            std::cout << "Plan: clean\n";
+            std::cout << "Plan::cleanup()\n";
             CHECK_CL(clReleaseCommandQueue( queue ));
             queue = 0;
             if(handle){
@@ -75,6 +75,7 @@ namespace clFFT {
           }
         }
         ~Plan(){
+          std::cout<<"Plan::dtor()\n";
           cleanup();
         }
   };

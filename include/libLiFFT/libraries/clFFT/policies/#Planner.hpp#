@@ -58,7 +58,6 @@ namespace policies {
     static constexpr bool isComplexIn  = T_isComplexIn;
     static constexpr bool isComplexOut = T_isComplexOut;
     static constexpr bool usePadding   = T_isInplace && (!(T_isComplexIn && T_isComplexOut));
-    //static constexpr bool usePadding   = (!(T_isComplexIn && T_isComplexOut));
 
     static_assert(isComplexIn || isComplexOut, "Real2Real conversion not supported");
     //static_assert(T_isComplexIn || T_isFwd, "Real2Complex is always a forward transform");

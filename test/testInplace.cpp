@@ -32,7 +32,6 @@ namespace LiFFTTest {
 
     struct GenData
     {
-
         template< class T_Idx >
         float operator()(T_Idx&& idx) const
         {
@@ -74,13 +73,6 @@ namespace LiFFTTest {
         LiFFT::policies::copy(aperture, baseC2CInput);
         fft(input);
         execBaseC2C();
-
-        using Extents = LiFFT::types::Vec<2>;
-        Extents idx = Extents::all(0u);
-        for(unsigned i=0; i<10; i++){
-          std::cout << output(idx) << " " << baseC2COutput(idx) << std::endl;
-          idx[0]++;
-        }
         // Inplace got some more random derivations in the low intensity regions
         checkResult(baseC2COutput, output, "C2C inPlace", CmpError(1e-3, 5e-5));
     }
@@ -93,7 +85,7 @@ namespace LiFFTTest {
         auto aperture = makeView(RealContainer(ext), makeRange(Origin(), TestExtents::all(testSize)));
         using FFT_Type = LiFFT::FFT_2D_R2C<TestPrecision, true>;
         auto input = FFT_Type::wrapInput(aperture);
-        auto output = FFT_Type::createNewOutput(input);
+        auto output = FFT_Type::createNewOutput(input); // needed for execBaseR2C
         auto fft = LiFFT::makeFFT<TestLibrary>(input);
         generateData(input, Rect<TestPrecision>(20,testSize/2));
         LiFFT::policies::copy(aperture, baseR2CInput);
