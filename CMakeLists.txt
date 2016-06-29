@@ -61,7 +61,27 @@ list(APPEND CUDA_NVCC_FLAGS_DEBUG "-O0 -g")
 if(${CMAKE_VERSION} VERSION_LESS 2.8.10)
     list(APPEND CUDA_NVCC_FLAGS "-ccbin ${CMAKE_C_COMPILER}")
 endif()
-
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
+    list(APPEND CUDA_NVCC_FLAGS "-D_MWAITXINTRIN_H_INCLUDED")
+  endif()
+endif()
+###############################################################################
+# OpenCL+clFFT
+###############################################################################
+#list(APPEND CMAKE_MODULE_PATH "../cmake")
+FIND_PACKAGE(OpenCL)
+if(OPENCL_FOUND)
+  message("OpenCL found.")
+  FIND_PACKAGE(clFFT)
+  set(LiFFT_ENABLE_CLFFT ${CLFFT_FOUND} CACHE BOOL "Use ClFFT")
+  if(CLFFT_FOUND)
+    set(ENABLE_CUDA OFF CACHE BOOL "Use CUDA")
+    set(LIBS ${LIBS} ${CLFFT_LIBRARIES} ${OPENCL_LIBRARIES})
+    INCLUDE_DIRECTORIES(${CLFFT_INCLUDE_DIRS})
+    message("clFFT -> " ${CLFFT_LIBRARIES})
+  endif()
+endif()
 ###############################################################################
 # FFTW
 ###############################################################################
@@ -78,7 +98,7 @@ endif()
 ###############################################################################
 # Boost
 ###############################################################################
-find_package(Boost 1.48.0 COMPONENTS program_options system filesystem REQUIRED)
+find_package(Boost 1.48.0 COMPONENTS program_options unit_test_framework system filesystem REQUIRED)
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${Boost_LIBRARIES})
 
@@ -98,24 +118,27 @@ CheckAndAddFlag(-Wall)
 CheckAndAddFlag(-Wextra)
 CheckAndAddFlag(-Wshadow)
 CheckAndAddFlag(/W3)
+CheckAndAddFlag(-gdwarf-2)
 
-if(CUDA_FOUND AND LiFFT_ENABLE_CUDA)
+if(CLFFT_FOUND AND LiFFT_ENABLE_CLFFT)
+  add_definitions(-DWITH_CLFFT)
+else()
+  if(CUDA_FOUND AND LiFFT_ENABLE_CUDA)
     add_definitions(-DWITH_CUDA)
     cuda_add_executable(fftTiffImg fftTiffImg/main.cu)
     CUDA_ADD_CUFFT_TO_TARGET(fftTiffImg)
     cuda_add_executable(reportVolumes reportVolumes/main.cu)
     CUDA_ADD_CUFFT_TO_TARGET(reportVolumes)
-else()
+  else()
 	add_executable(fftTiffImg fftTiffImg/main.cpp)
 	add_executable(reportVolumes reportVolumes/main.cpp)
+  endif()
+  add_executable(tiff2PDF tiff2Pdf/tiff2pdf.cpp)
+
+  target_link_libraries(tiff2PDF ${TIFF_LIBRARIES})
+  target_link_libraries(fftTiffImg ${LIBS})
+  target_link_libraries(reportVolumes ${LIBS})
 endif()
-
-add_executable(tiff2PDF tiff2Pdf/tiff2pdf.cpp)
-
-target_link_libraries(tiff2PDF ${TIFF_LIBRARIES})
-target_link_libraries(fftTiffImg ${LIBS})
-target_link_libraries(reportVolumes ${LIBS})
-
 add_subdirectory(test)
 
 enable_testing()

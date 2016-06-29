@@ -21,6 +21,9 @@
 #include "libLiFFT/mem/ComplexAoSValues.hpp"
 #ifdef WITH_CUDA
 #include "libLiFFT/libraries/cuFFT/cuFFT.hpp"
+#elif defined(WITH_CLFFT)
+#include "libLiFFT/libraries/clFFT/policies/Context.hpp"
+#include "libLiFFT/libraries/clFFT/clFFT.hpp"
 #else
 #include "libLiFFT/libraries/fftw/FFTW.hpp"
 #endif
@@ -42,6 +45,21 @@ namespace LiFFTTest{
 
     #ifdef WITH_CUDA
     using TestLibrary = LiFFT::libraries::cuFFT::CuFFT<>;
+    #elif defined(WITH_CLFFT)
+
+/**
+ * For a test this needs to be placed in a function before using clfft:
+    LiFFT::libraries::clFFT::policies::ContextLocal cl;
+    bool create_clfft_context=true;
+    LiFFT::libraries::clFFT::policies::ContextWrapper::wrap(
+      cl.context(),
+      cl.device(),
+      create_clfft_context);
+*/
+    //using Context = LiFFT::libraries::clFFT::policies::ContextWrapper; */
+    //using Context = LiFFT::libraries::clFFT::policies::ContextLocal;
+    using Context = LiFFT::libraries::clFFT::policies::ContextGlobal;
+    using TestLibrary = LiFFT::libraries::clFFT::ClFFT<Context>;
     #else
     using TestLibrary = LiFFT::libraries::fftw::FFTW<>;
     #endif

@@ -32,7 +32,6 @@ namespace LiFFTTest {
 
     struct GenData
     {
-
         template< class T_Idx >
         float operator()(T_Idx&& idx) const
         {
@@ -86,7 +85,7 @@ namespace LiFFTTest {
         auto aperture = makeView(RealContainer(ext), makeRange(Origin(), TestExtents::all(testSize)));
         using FFT_Type = LiFFT::FFT_2D_R2C<TestPrecision, true>;
         auto input = FFT_Type::wrapInput(aperture);
-        auto output = FFT_Type::createNewOutput(input);
+        auto output = FFT_Type::createNewOutput(input); // needed for execBaseR2C
         auto fft = LiFFT::makeFFT<TestLibrary>(input);
         generateData(input, Rect<TestPrecision>(20,testSize/2));
         LiFFT::policies::copy(aperture, baseR2CInput);

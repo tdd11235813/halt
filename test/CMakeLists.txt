@@ -28,7 +28,14 @@ if(LiFFT_ENABLE_COVERAGE)
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 --coverage")
 endif()
 
-if(CUDA_FOUND AND LiFFT_ENABLE_CUDA)
+if(CLFFT_FOUND AND LiFFT_ENABLE_CLFFT)
+	file(GLOB LiFFT_Test_FILES
+        "*.cpp"
+        "*.hpp"
+    )
+    list(REMOVE_ITEM LiFFT_Test_FILES ${CMAKE_CURRENT_SOURCE_DIR}/minIncludes.cpp)
+  add_executable(Test ${LiFFT_Test_FILES})
+elseif(CUDA_FOUND AND LiFFT_ENABLE_CUDA)
     file(GLOB LiFFT_Test_FILES
         "*.cu"
         "*.hpp"
