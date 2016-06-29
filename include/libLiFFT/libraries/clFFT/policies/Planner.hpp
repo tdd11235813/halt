@@ -13,7 +13,6 @@
 namespace LiFFT {
 namespace libraries {
 namespace clFFT {
-
 namespace policies {
 
   /**
@@ -169,7 +168,7 @@ namespace policies {
         size_t size = std::max(numElementsIn*(isComplexIn?2:1),
                                numElementsOut*(isComplexOut?2:1)) * sizeof(Precision);
         checkSize(size);
-        plan.InDevicePtr.reset( alloc.malloc(size, plan.ctx, plan.queue) );
+        plan.InDevicePtr.reset( alloc.malloc(size, plan.ctx) );
       }else{
         size_t inSize = numElementsIn * sizeof(Precision) * (isComplexIn?2:1);
         size_t outSize = numElementsOut * sizeof(Precision) * (isComplexOut?2:1);
@@ -177,10 +176,10 @@ namespace policies {
         checkSize(outSize);
         if(!Input::IsDeviceMemory::value)
           plan.InDevicePtr.reset(
-            alloc.malloc(inSize, plan.ctx, plan.queue));
+            alloc.malloc(inSize, plan.ctx));
         if(!Output::IsDeviceMemory::value)
           plan.OutDevicePtr.reset(
-            alloc.malloc(outSize, plan.ctx, plan.queue));
+            alloc.malloc(outSize, plan.ctx));
       }
       // Always use fullExtents, that is the extents of the real container for R2C/C2R
       // For C2C it does not matter
@@ -194,7 +193,7 @@ namespace policies {
       checkSize(size);
       if(!Input::IsDeviceMemory::value)
         plan.InDevicePtr.reset(
-          alloc.malloc(size, plan.ctx, plan.queue));
+          alloc.malloc(size, plan.ctx));
       createPlan(plan, inOut.getFullExtents());
     }
   };

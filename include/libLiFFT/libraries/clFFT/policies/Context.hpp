@@ -9,14 +9,44 @@ namespace libraries {
 namespace clFFT {
 namespace policies {
 
-  class Context {
-  public:
+  /**
+   * Base class with OpenCL context and device pointer
+   */
+  struct Context {
     cl_context ctx = 0;
     cl_device_id dev = 0;
   };
 
+  struct ClFFTContext {
+    bool initialized = false;
+    /**
+     * Setting up clfft context
+     */
+    void init() {
+      clfftSetupData fftSetup;
+      CHECK_CL( clfftInitSetupData(&fftSetup) );
+      CHECK_CL( clfftSetup(&fftSetup) );
+      initialized = true;
+    }
+    /**
+     * Destroying clfft context if it was initialized
+     */
+    ~ClFFTContext() {
+      if(initialized)
+        CHECK_CL(clfftTeardown());
+    }
+  };
+
+  /**
+   * Provides OpenCL context and device after instantiation, where clfft is
+   * initialized as well.
+   *
+   * If no GPU is found, CPUs are used by OpenCL. For own OpenCL context and
+   * device, use the ContextWrapper class.
+   */
   class ContextLocal : private Context {
   public:
+    ClFFTContext clfft;
     cl_context context()
     {
       return ctx;
@@ -33,21 +63,19 @@ namespace policies {
       findClDevice(CL_DEVICE_TYPE_GPU, &platform, &dev);
       props[1] = (cl_context_properties)platform;
       ctx = clCreateContext(props, 1, &dev, NULL, NULL, &err);
+      clfft.init();
       CHECK_CL(err);
-      /* Setup clFFT. */
-      clfftSetupData fftSetup;
-      CHECK_CL( clfftInitSetupData(&fftSetup) );
-      CHECK_CL( clfftSetup(&fftSetup) );
     }
     ~ContextLocal()
     {
-      CHECK_CL(clfftTeardown( ));
       clReleaseContext( ctx );
       ctx = 0;
     }
   };
 
-
+/**
+ * A singleton by using a single ContextLocal instance.
+ */
   class ContextGlobal
   {
   private:
@@ -67,25 +95,39 @@ namespace policies {
     }
   };
 
+/**
+ * Wraps OpenCL context and device given by user.
+ */
   class ContextWrapper
   {
-    static Context instance;
   public:
-    static void wrap(cl_context c, cl_device_id d)
+    static void wrap(cl_context c, cl_device_id d, bool create_clfft_context)
     {
-      instance.ctx = c;
-      instance.dev = d;
+      static ClFFTContext clfft;
+      if(create_clfft_context)
+        clfft.init();
+      context_static(c);
+      device_static(d);
+    }
+    static cl_context context_static(cl_context c=0) {
+      static cl_context ctx; // init
+      if(c!=0) ctx=c; // re-assign
+      return ctx;
+    }
+    static cl_device_id device_static(cl_device_id d=0) {
+      static cl_device_id dev; // init
+      if(d!=0) dev=d; // re-assign
+      return dev;
     }
     cl_context context()
     {
-      return instance.ctx;
+      return context_static();
     }
     cl_device_id device()
     {
-      return instance.dev;
+      return device_static();
     }
   };
-
 }
 }
 }

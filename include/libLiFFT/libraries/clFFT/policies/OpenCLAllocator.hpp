@@ -17,7 +17,7 @@ namespace policies {
     struct OpenCLAllocator
     {
         cl_mem
-        malloc(size_t memSize, cl_context ctx, cl_command_queue queue) const
+        malloc(size_t memSize, cl_context ctx) const
         {
           cl_int err=0;
           cl_mem mem = clCreateBuffer( ctx,
@@ -39,4 +39,4 @@ namespace policies {
 }  // namespace policies
 }  // namespace clFFT
 }  // namespace libraries
-}  // namespace foobar
+}  // namespace LiFFT

@@ -27,6 +27,7 @@ namespace clFFT {
      *
      * Note: Allocation and copy will only occur if the IsDeviceMemory trait returns false for the given container
      *
+     * \tparam T_Context OpenCL Context Class managing context and device object
      * \tparam T_InplacePolicy Either InplaceExplicit or InplaceForHost
      * \tparam T_Allocator Policy to alloc/free memory for the input
      * \tparam T_Copier Policy to copy memory to and from the device

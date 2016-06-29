@@ -17,7 +17,6 @@ namespace clFFT {
 namespace policies {
 
   namespace detail {
-
     template<
       typename T_Precision,
       bool T_isComplexIn,
@@ -40,8 +39,6 @@ namespace policies {
           );
       }
     };
-
-
   }  // namespace detail
 
   template<

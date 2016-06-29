@@ -19,4 +19,4 @@ namespace traits{
 }  // namespace traits
 }  // namespace clFFT
 }  // namespace libraries
-}  // namespace foobar
+}  // namespace LiFFT

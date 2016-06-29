@@ -21,9 +21,6 @@ namespace policies {
         static constexpr bool isComplexOut = T_isComplexOut;
         static constexpr unsigned numDims = T_numDims;
 
-/*        template< class T_Input >
-        static size_t
-        get(const T_Input& input)*/
         template< class T_Extents >
         static size_t
         get(const T_Extents& fullExtents)
@@ -42,4 +39,4 @@ namespace policies {
 }  // namespace policies
 }  // namespace clFFT
 }  // namespace libraries
-}  // namespace foobar
+}  // namespace LiFFT

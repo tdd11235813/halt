@@ -25,11 +25,15 @@ namespace clFFT {
                 T_Deleter().free(ptr);
             }
         };
+
         Plan(const Plan&) = delete;
         Plan& operator=(const Plan&) = delete;
+
     public:
+        /// comes from T_Context context
         cl_context ctx = 0;
         cl_command_queue queue = 0;
+        /// clfft must be initialized before, see policies::Context
         clfftPlanHandle handle = 0;
         std::unique_ptr<_cl_mem, Deleter> InDevicePtr;
         std::unique_ptr<_cl_mem, Deleter> OutDevicePtr;
@@ -79,4 +83,4 @@ namespace clFFT {
 
 }  // namespace clFFT
 }  // namespace libraries
-}  // namespace foobar
+}  // namespace LiFFT
