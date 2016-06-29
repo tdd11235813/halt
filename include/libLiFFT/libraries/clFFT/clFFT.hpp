@@ -37,7 +37,7 @@ namespace clFFT {
      */
     template<
         class T_Context,
-        class T_InplacePolicy = InplaceExplicit,//InplaceForHost,
+        class T_InplacePolicy = InplaceForHost,
         class T_Allocator = policies::OpenCLAllocator,
         class T_Copier = policies::OpenCLMemCpy,
         class T_FFT_Properties = bmpl::_1

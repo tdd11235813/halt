@@ -57,8 +57,6 @@ namespace policies {
     static constexpr bool isInplace    = T_isInplace;
     static constexpr bool isComplexIn  = T_isComplexIn;
     static constexpr bool isComplexOut = T_isComplexOut;
-    static constexpr bool usePadding   = T_isInplace && (!(T_isComplexIn && T_isComplexOut));
-    //static constexpr bool usePadding   = (!(T_isComplexIn && T_isComplexOut));
 
     static_assert(isComplexIn || isComplexOut, "Real2Real conversion not supported");
     //static_assert(T_isComplexIn || T_isFwd, "Real2Complex is always a forward transform");
@@ -69,7 +67,7 @@ namespace policies {
   private:
     template< class T_Plan, class T_Extents >
     void
-    createPlan(T_Plan& plan, T_Extents& fullExtents) {
+    createPlan(T_Plan& plan, T_Extents& fullExtents, bool useInplaceForHost=false) {
       std::cout<<"Planner::createPlan\n";
       assert(plan.handle==0);
       size_t cldims[numDims];
@@ -96,23 +94,25 @@ namespace policies {
       size_t transform_strides[3] = {1};
       size_t dist = 0;
       size_t transform_dist = 0;
-      if(usePadding) { // inplace R2C or C2R
-        size_t n_complex = n / fullExtents[numDims-1] * (fullExtents[numDims-1]/2 + 1);
-        std::cout << "UsePadding\n";
-        strides[1] = 2*(fullExtents[numDims-1]/2+1); // reals w padding
-        strides[2] = 2 * n_complex / fullExtents[0];
-        transform_strides[1] = fullExtents[numDims-1]/2+1;
-        transform_strides[2] = n_complex / fullExtents[0];
-        dist = 2 * n_complex;
-        transform_dist = n_complex;
-      }else if(!isInplace && (!isComplexIn || !isComplexOut)) { // outplace R2C or C2R
-        size_t n_complex = n / fullExtents[numDims-1] * (fullExtents[numDims-1]/2 + 1);
-        strides[1] = fullExtents[numDims-1];
-        strides[2] = n / fullExtents[0];
-        transform_strides[1] = fullExtents[numDims-1]/2+1;
-        transform_strides[2] = n_complex / fullExtents[0];
-        dist = n;
-        transform_dist = n_complex;
+      if(!isComplexIn || !isComplexOut) {
+        if(isInplace || useInplaceForHost) { // inplace R2C or C2R
+          std::cout << "UsePadding "<<(isComplexIn?"C":"R")<<"2"<<(isComplexOut?"C":"R")<<std::endl;
+          size_t n_complex = n / fullExtents[numDims-1] * (fullExtents[numDims-1]/2 + 1);
+          strides[1] = 2*(fullExtents[numDims-1]/2+1); // reals w padding, row
+          strides[2] = 2 * n_complex / fullExtents[0];
+          transform_strides[1] = fullExtents[numDims-1]/2+1;
+          transform_strides[2] = n_complex / fullExtents[0];
+          dist = 2 * n_complex;
+          transform_dist = n_complex;
+        }else{ // outplace R2C or C2R
+          size_t n_complex = n / fullExtents[numDims-1] * (fullExtents[numDims-1]/2 + 1);
+          strides[1] = fullExtents[numDims-1];
+          strides[2] = n / fullExtents[0];
+          transform_strides[1] = fullExtents[numDims-1]/2+1;
+          transform_strides[2] = n_complex / fullExtents[0];
+          dist = n;
+          transform_dist = n_complex;
+        }
       }
       if(!isComplexIn) // R2C
       {
@@ -171,8 +171,7 @@ namespace policies {
         size_t size = std::max(numElementsIn*(isComplexIn?2:1),
                                numElementsOut*(isComplexOut?2:1)) * sizeof(Precision);
         checkSize(size);
-        plan.InDevicePtr.reset(
-          alloc.malloc(size, plan.ctx, plan.queue));
+        plan.InDevicePtr.reset( alloc.malloc(size, plan.ctx, plan.queue) );
       }else{
         /* @todo need correct sizes here,
          * R2C can be Real->cl_mem->Complex
@@ -192,7 +191,7 @@ namespace policies {
       }
       // Always use fullExtents, that is the extents of the real container for R2C/C2R
       // For C2C it does not matter
-      createPlan(plan, isComplexIn ? extentsOut : extents);
+      createPlan(plan, isComplexIn ? extentsOut : extents, useInplaceForHost);
     }
 
     template< class T_Plan, class T_Allocator >

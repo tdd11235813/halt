@@ -84,10 +84,24 @@ namespace policies {
       cl_mem pIn = 0;
       if( plan.InDevicePtr )
       {
-        copy.copy(plan.InDevicePtr.get(),
-                  input.getDataPtr(),
-                  memsizeIn,
-                  plan.queue);
+        // host w unpitched reals to pitched reals in device buffer
+        if(useInplaceForHost && !isComplexIn) {
+          auto fullExtents = input.getFullExtents();
+          size_t w = fullExtents[numDims-1] * sizeof(Precision);
+          size_t pitch = (fullExtents[numDims-1]/2+1)*2*sizeof(Precision);
+          size_t h = memsizeIn/sizeof(Precision) / fullExtents[numDims-1];
+          copy.copyPitched(plan.InDevicePtr.get(),
+                           input.getDataPtr(),
+                           plan.queue,
+                           w,
+                           h,
+                           pitch
+            );
+        }else
+          copy.copy(plan.InDevicePtr.get(),
+                    input.getDataPtr(),
+                    memsizeIn,
+                    plan.queue);
         pIn = safe_ptr_cast<cl_mem>(plan.InDevicePtr.get());
       }else if(Input::IsDeviceMemory::value)
         pIn = reinterpret_cast<cl_mem>(input.getDataPtr());
@@ -109,7 +123,20 @@ namespace policies {
       CHECK_CL(clFinish(plan.queue));
 
       if( plan.OutDevicePtr || !Output::IsDeviceMemory::value) {
-        copy.copy(output.getDataPtr(), pOut, memsizeOut, plan.queue);
+        if(useInplaceForHost && !isComplexOut) {
+          auto fullExtents = output.getFullExtents();
+          size_t w = fullExtents[numDims-1] * sizeof(Precision);
+          size_t pitch = (fullExtents[numDims-1]/2+1)*2*sizeof(Precision);
+          size_t h = memsizeOut/sizeof(Precision) / fullExtents[numDims-1];
+          copy.copyPitched(output.getDataPtr(),
+                           pOut,
+                           plan.queue,
+                           w,
+                           h,
+                           pitch
+            );
+        }else
+          copy.copy(output.getDataPtr(), pOut, memsizeOut, plan.queue);
       }
       for(size_t i=0; i<32; ++i) {
         std::cout << input.getDataPtr()[i] << " | ";
