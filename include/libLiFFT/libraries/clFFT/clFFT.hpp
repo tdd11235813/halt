@@ -1,6 +1,3 @@
-/*
- * @todo clFFT features like scaling factor (planScale), batches, callback
- */
 #pragma once
 
 #include "libLiFFT/libraries/clFFT/policies/Context.hpp"
@@ -88,7 +85,7 @@ namespace clFFT {
           try{
             Planner()(plan_, input, output, inplaceForHost, Allocator());
           }catch(const std::runtime_error& e){
-            std::cout << "Error in Planner()() occurred (outplace): "<<e.what()<<std::endl;
+            std::cerr << "Error in Planner()() occurred (outplace): "<<e.what()<<std::endl;
             plan_.cleanup();
           }
         }
@@ -98,7 +95,7 @@ namespace clFFT {
           try{
             Planner()(plan_, inOut, Allocator());
           }catch(const std::runtime_error& e){
-            std::cout << "Error in Planner()() occurred (inplace): "<<e.what()<<std::endl;
+            std::cerr << "Error in Planner()() occurred (inplace): "<<e.what()<<std::endl;
             plan_.cleanup();
           }
         }
@@ -111,7 +108,7 @@ namespace clFFT {
           try{
             ExecutePlan()(plan_, input, output, inplaceForHost, Copier());
           }catch(const std::runtime_error& e){
-            std::cout << "Error in ExecutePlan()() occurred (outplace): "<<e.what()<<std::endl;
+            std::cerr << "Error in ExecutePlan()() occurred (outplace): "<<e.what()<<std::endl;
             plan_.cleanup();
           }
         }
@@ -121,7 +118,7 @@ namespace clFFT {
           try{
             ExecutePlan()(plan_, inOut, Copier());
           }catch(const std::runtime_error& e){
-            std::cout << "Error in ExecutePlan()() occurred (inplace): "<<e.what()<<std::endl;
+            std::cerr << "Error in ExecutePlan()() occurred (inplace): "<<e.what()<<std::endl;
             plan_.cleanup();
           }
         }

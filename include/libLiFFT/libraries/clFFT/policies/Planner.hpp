@@ -68,7 +68,6 @@ namespace policies {
     template< class T_Plan, class T_Extents >
     void
     createPlan(T_Plan& plan, T_Extents& fullExtents, bool useInplaceForHost=false) {
-      std::cout<<"Planner::createPlan\n";
       assert(plan.handle==0);
       size_t cldims[numDims];
       // switch order since clFFT exposes [Nz][Ny][Nx],
@@ -96,7 +95,6 @@ namespace policies {
       size_t transform_dist = 0;
       if(!isComplexIn || !isComplexOut) {
         if(isInplace || useInplaceForHost) { // inplace R2C or C2R
-          std::cout << "UsePadding "<<(isComplexIn?"C":"R")<<"2"<<(isComplexOut?"C":"R")<<std::endl;
           size_t n_complex = n / fullExtents[numDims-1] * (fullExtents[numDims-1]/2 + 1);
           strides[1] = 2*(fullExtents[numDims-1]/2+1); // reals w padding, row
           strides[2] = 2 * n_complex / fullExtents[0];
@@ -173,11 +171,6 @@ namespace policies {
         checkSize(size);
         plan.InDevicePtr.reset( alloc.malloc(size, plan.ctx, plan.queue) );
       }else{
-        /* @todo need correct sizes here,
-         * R2C can be Real->cl_mem->Complex
-         * or Real->cl_mem->cl_mem->Complex (useInplaceForHost==false)
-         * Real equals Precision, but Complex==? Is sizeof(Complex) just 2*sizeof(Precision)?
-         */
         size_t inSize = numElementsIn * sizeof(Precision) * (isComplexIn?2:1);
         size_t outSize = numElementsOut * sizeof(Precision) * (isComplexOut?2:1);
         checkSize(inSize);
@@ -197,7 +190,6 @@ namespace policies {
     template< class T_Plan, class T_Allocator >
     void
     operator()(T_Plan& plan, Input& inOut, const T_Allocator& alloc) {
-      //size_t size = inOut.getNumElements() * sizeof(Precision);
       size_t size = policies::GetInplaceMemSize<Precision, isComplexIn, isComplexOut, numDims>::get(inOut.getFullExtents());
       checkSize(size);
       if(!Input::IsDeviceMemory::value)

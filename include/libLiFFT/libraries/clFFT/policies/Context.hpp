@@ -27,7 +27,6 @@ namespace policies {
     }
     ContextLocal()
     {
-      std::cout << "Create context.\n";
       cl_context_properties props[3] = { CL_CONTEXT_PLATFORM, 0, 0 };
       cl_platform_id platform = 0;
       cl_int err = 0;
@@ -42,7 +41,6 @@ namespace policies {
     }
     ~ContextLocal()
     {
-      std::cout << "Destroy context.\n";
       CHECK_CL(clfftTeardown( ));
       clReleaseContext( ctx );
       ctx = 0;
