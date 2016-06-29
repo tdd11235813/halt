@@ -9,14 +9,6 @@ namespace libraries {
 namespace clFFT {
 namespace policies {
 
-  /**
-   * Base class with OpenCL context and device pointer
-   */
-  struct Context {
-    cl_context ctx = 0;
-    cl_device_id dev = 0;
-  };
-
   struct ClFFTContext {
     bool initialized = false;
     /**
@@ -38,6 +30,15 @@ namespace policies {
   };
 
   /**
+   * Base class with OpenCL context and device pointer
+   */
+  struct Context {
+    cl_context ctx_ = 0;
+    cl_device_id dev_ = 0;
+    cl_command_queue queue_ = 0;
+  };
+
+  /**
    * Provides OpenCL context and device after instantiation, where clfft is
    * initialized as well.
    *
@@ -47,29 +48,33 @@ namespace policies {
   class ContextLocal : private Context {
   public:
     ClFFTContext clfft;
-    cl_context context()
-    {
-      return ctx;
+    cl_context context() {
+      return ctx_;
     }
-    cl_device_id device()
-    {
-      return dev;
+    cl_device_id device() {
+      return dev_;
+    }
+    cl_command_queue queue() {
+      return queue_;
     }
     ContextLocal()
     {
       cl_context_properties props[3] = { CL_CONTEXT_PLATFORM, 0, 0 };
       cl_platform_id platform = 0;
       cl_int err = 0;
-      findClDevice(CL_DEVICE_TYPE_GPU, &platform, &dev);
+      findClDevice(CL_DEVICE_TYPE_GPU, &platform, &dev_);
       props[1] = (cl_context_properties)platform;
-      ctx = clCreateContext(props, 1, &dev, NULL, NULL, &err);
+      ctx_ = clCreateContext(props, 1, &dev_, NULL, NULL, &err);
       clfft.init();
       CHECK_CL(err);
+      queue_ = clCreateCommandQueue( ctx_, dev_, 0, &err );
     }
     ~ContextLocal()
     {
-      clReleaseContext( ctx );
-      ctx = 0;
+      CHECK_CL(clReleaseCommandQueue( queue_ ));
+      queue_ = 0;
+      clReleaseContext( ctx_ );
+      ctx_ = 0;
     }
   };
 
@@ -93,6 +98,9 @@ namespace policies {
     {
       return getInstance()->device();
     }
+    cl_command_queue queue() {
+      return getInstance()->queue();
+    }
   };
 
 /**
@@ -101,13 +109,24 @@ namespace policies {
   class ContextWrapper
   {
   public:
-    static void wrap(cl_context c, cl_device_id d, bool create_clfft_context)
+    static void wrap(cl_context c,
+                     cl_device_id d,
+                     bool create_clfft_context)
+    {
+      wrap(c, d, 0, create_clfft_context);
+    }
+    static void wrap(cl_context c,
+                     cl_device_id d,
+                     cl_command_queue q,
+                     bool create_clfft_context)
     {
       static ClFFTContext clfft;
       if(create_clfft_context)
         clfft.init();
       context_static(c);
       device_static(d);
+      if(q!=0)
+        queue_static(q);
     }
     static cl_context context_static(cl_context c=0) {
       static cl_context ctx; // init
@@ -119,13 +138,19 @@ namespace policies {
       if(d!=0) dev=d; // re-assign
       return dev;
     }
-    cl_context context()
-    {
+    static cl_command_queue queue_static(cl_command_queue q=0) {
+      static cl_command_queue queue; // init
+      if(q!=0) queue=q; // re-assign
+      return queue;
+    }
+    cl_context context() {
       return context_static();
     }
-    cl_device_id device()
-    {
+    cl_device_id device() {
       return device_static();
+    }
+    cl_command_queue queue() {
+      return queue_static();
     }
   };
 }
