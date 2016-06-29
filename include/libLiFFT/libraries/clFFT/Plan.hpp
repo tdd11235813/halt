@@ -42,7 +42,7 @@ namespace clFFT {
         {
           cl_int err = 0;
           ctx = context.context();
-          queue = clCreateCommandQueue( ctx, context.device(), 0, &err );
+          queue = context.queue();
           CHECK_CL(err);
         }
         Plan(Plan&& obj)
@@ -67,14 +67,10 @@ namespace clFFT {
         }
 
         void cleanup() {
-          if(queue){
-            CHECK_CL(clReleaseCommandQueue( queue ));
-            queue = 0;
             if(handle){
               CHECK_CL(clfftDestroyPlan(&handle));
               handle=0;
             }
-          }
         }
         ~Plan(){
           cleanup();

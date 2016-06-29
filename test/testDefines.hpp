@@ -54,6 +54,7 @@ namespace LiFFTTest{
     LiFFT::libraries::clFFT::policies::ContextWrapper::wrap(
       cl.context(),
       cl.device(),
+      [cl.queue(),]
       create_clfft_context);
 */
     //using Context = LiFFT::libraries::clFFT::policies::ContextWrapper; */
