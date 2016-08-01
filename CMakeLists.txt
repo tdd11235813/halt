@@ -61,6 +61,11 @@ list(APPEND CUDA_NVCC_FLAGS_DEBUG "-O0 -g")
 if(${CMAKE_VERSION} VERSION_LESS 2.8.10)
     list(APPEND CUDA_NVCC_FLAGS "-ccbin ${CMAKE_C_COMPILER}")
 endif()
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
+    list(APPEND CUDA_NVCC_FLAGS "-D_MWAITXINTRIN_H_INCLUDED")
+  endif()
+endif()
 
 ###############################################################################
 # FFTW
