@@ -50,6 +50,20 @@ set(LIBS ${LIBS} ${TIFF_LIBRARIES})
 include_directories(${TIFF_INCLUDE_DIR})
 
 ###############################################################################
+# OpenCL+clFFT
+###############################################################################
+FIND_PACKAGE(OpenCL)
+if(OPENCL_FOUND)
+  message("OpenCL found.")
+  FIND_PACKAGE(clFFT)
+  set(LiFFT_ENABLE_OPENCL ${CLFFT_FOUND} CACHE BOOL "Use ClFFT")
+  if(CLFFT_FOUND)
+    set(LIBS ${LIBS} ${CLFFT_LIBRARIES} ${OPENCL_LIBRARIES})
+    INCLUDE_DIRECTORIES(${CLFFT_INCLUDE_DIRS})
+  endif()
+endif()
+
+###############################################################################
 # CUDA
 ###############################################################################
 find_package(CUDA)
@@ -61,11 +75,17 @@ list(APPEND CUDA_NVCC_FLAGS_DEBUG "-O0 -g")
 if(${CMAKE_VERSION} VERSION_LESS 2.8.10)
     list(APPEND CUDA_NVCC_FLAGS "-ccbin ${CMAKE_C_COMPILER}")
 endif()
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
+    list(APPEND CUDA_NVCC_FLAGS "-D_MWAITXINTRIN_H_INCLUDED")
+  endif()
+endif()
 
 ###############################################################################
 # FFTW
 ###############################################################################
-if(CUDA_FOUND AND LiFFT_ENABLE_CUDA)
+if(CUDA_FOUND AND LiFFT_ENABLE_CUDA
+    OR CLFFT_FOUND AND LiFFT_ENABLE_OPENCL)
     find_package(FFTW)
 else()
     find_package(FFTW REQUIRED)
@@ -99,6 +119,11 @@ CheckAndAddFlag(-Wextra)
 CheckAndAddFlag(-Wshadow)
 CheckAndAddFlag(/W3)
 
+if(CUDA_FOUND AND LiFFT_ENABLE_CUDA
+    AND CLFFT_FOUND AND LiFFT_ENABLE_OPENCL)
+  message(WARNING "cuFFT as well as clFFT have been found and you have enabled both of them. cuFFT will be used.")
+endif()
+
 if(CUDA_FOUND AND LiFFT_ENABLE_CUDA)
     add_definitions(-DWITH_CUDA)
     cuda_add_executable(fftTiffImg fftTiffImg/main.cu)
@@ -106,8 +131,11 @@ if(CUDA_FOUND AND LiFFT_ENABLE_CUDA)
     cuda_add_executable(reportVolumes reportVolumes/main.cu)
     CUDA_ADD_CUFFT_TO_TARGET(reportVolumes)
 else()
-	add_executable(fftTiffImg fftTiffImg/main.cpp)
-	add_executable(reportVolumes reportVolumes/main.cpp)
+    if(CLFFT_FOUND AND LiFFT_ENABLE_OPENCL)
+        add_definitions(-DWITH_OPENCL)
+    endif()
+    add_executable(fftTiffImg fftTiffImg/main.cpp)
+    add_executable(reportVolumes reportVolumes/main.cpp)
 endif()
 
 add_executable(tiff2PDF tiff2Pdf/tiff2pdf.cpp)
