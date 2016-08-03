@@ -28,6 +28,20 @@ namespace traits {
     template< typename T >
     struct IntegralType;
 
+
+
+  // SFINAE test if T has type member
+  template <typename T>
+  class has_type
+  {
+    typedef char one;
+    typedef long two;
+    template <typename C> static one test( decltype(&C::isComplex) ) ;
+    template <typename C> static two test(...);
+  public:
+    enum { value = sizeof(test<T>(0)) == sizeof(char) };
+  };
+
     /**
      * Specialize this to return the integral type of a given memory representation
      */
@@ -37,9 +51,10 @@ namespace traits {
     template< typename T >
     struct IntegralTypeImpl<
             T,
-            std::enable_if_t<
-                (std::is_integral<T>::value || std::is_floating_point<T>::value)
-            >
+      std::enable_if_t<std::is_integral<T>::value || std::is_floating_point<T>::value || has_type<T>::value==false>
+//            std::enable_if_t<
+//                (std::is_integral<T>::value || std::is_floating_point<T>::value)
+//            >
         >
     {
         using type = T;
