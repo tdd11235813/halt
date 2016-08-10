@@ -39,7 +39,8 @@ namespace clFFT {
     struct InplaceForHost: std::true_type{};
 
     /**
-     * Wrapper for the OpenCL-Library that executes the FFT on GPU(s)
+     * Wrapper for the OpenCL-Library that executes the FFT on an OpenCL device,
+     * prefering GPU(s).
      *
      * Note: Allocation and copy will only occur if the IsDeviceMemory trait returns false for the given container
      *

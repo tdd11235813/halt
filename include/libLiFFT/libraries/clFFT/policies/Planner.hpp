@@ -86,7 +86,7 @@ namespace policies {
     createPlan(T_Plan& plan, T_Extents& fullExtents, bool useInplaceForHost=false) {
       assert(plan.handle==0);
       size_t cldims[numDims];
-      // switch order since clFFT exposes [Nz][Ny][Nx],
+      // switch order since clfft library exposes [Nz][Ny][Nx],
       //  while liFFT uses [Nx][Ny][Nz]
       //  (both row-major)
       // if not C2C then dims are overwritten by the strides later

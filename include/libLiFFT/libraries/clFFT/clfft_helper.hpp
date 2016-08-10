@@ -2,13 +2,14 @@
 #define CLFFT_HELPER_HPP_
 
 #include <CL/cl.h>
+#include <iostream>
 #include <clFFT.h>
 #include <stdexcept>
 #include <sstream>
 #include <vector>
 #include <utility> // pair
 
-#define CHECK_CL( err ) LiFFT::libraries::clFFT::check_error( err, __FILE__, __LINE__ )
+#define CHECK_CL( err ) LiFFT::libraries::clFFT::check_error( err, #err, __FILE__, __LINE__ )
 
 #define STRINGIFY(A) #A
 #define clFFTStatusCase(s) case s: return STRINGIFY(s)
@@ -104,15 +105,17 @@ namespace libraries {
       default: return "Unknown OpenCL error";
       }
     }
-    template<typename T>
-    inline void check_error( T err, const char *file, const int line )
-    {
-      if ( CL_SUCCESS != err )
-      {
-        fprintf( stderr, "OpenCL error at %s:%i : %s\n",
-                 file, line, getOpenCLErrorString( err ) );
 
-        throw std::runtime_error("OpenCL Error: " + std::string(getOpenCLErrorString(err))+ " "+std::to_string(err));
+    template<typename T>
+    inline void check_error( T err, const char* func, const char *file, const int line ) {
+      if ( CL_SUCCESS != err ) {
+        throw std::runtime_error("OpenCL error "
+                                 + std::string(getOpenCLErrorString(err))
+                                 +" ["+std::to_string(err)+"]"
+                                 +" "+std::string(file)
+                                 +":"+std::to_string(line)
+                                 +" "+std::string(func)
+          );
       }
     }
 
@@ -155,10 +158,15 @@ namespace libraries {
       clGetDeviceInfo(dev_id, CL_DEVICE_MAX_COMPUTE_UNITS,
                       sizeof(maxComputeUnits), &maxComputeUnits, NULL);
       values.emplace_back("ComputeUnits", std::to_string(maxComputeUnits));
-      info << "\"ClFFT Informations\"";
+      info << "\"OpenCL Informations\"";
       for(auto pair : values) {
         info << ",\"" << pair.first << "\",\"" << pair.second << '"';
       }
+
+      // clfft version
+      cl_uint  major, minor, patch;
+      clfftGetVersion(&major, &minor, &patch);
+      info << ",\"clfft\",\"" << major << "." << minor << "." << patch <<"\"";
       return info;
     }
 
@@ -171,29 +179,30 @@ namespace libraries {
       cl_device_id device_id = 0;
       if (clGetPlatformIDs(0, NULL, &num_of_platforms) != CL_SUCCESS)
       {
-        fprintf(stderr, "Unable to get platform_id\n");
+        std::cerr << "Unable to get platform_id" << std::endl;
         return 1;
       }
       cl_platform_id *platform_ids = new cl_platform_id[num_of_platforms];
       if (clGetPlatformIDs(num_of_platforms, platform_ids, NULL) != CL_SUCCESS)
       {
-        fprintf(stderr,"Unable to get platform_id\n");
+        std::cerr << "Unable to get platform_ids" << std::endl;
         delete[] platform_ids;
         return 1;
       }
       bool found = false;
-      for(unsigned i=0; i<num_of_platforms; i++)
+      for(unsigned i=0; i<num_of_platforms; i++) {
         if(clGetDeviceIDs(platform_ids[i], devkind, 1, &device_id, &num_of_devices) == CL_SUCCESS){
           found = true;
           *platform = platform_ids[i];
           *device = device_id;
           break;
         }
+      }
+      delete[] platform_ids;
       if(!found){
         CHECK_CL(clGetPlatformIDs( 1, platform, NULL ));
         CHECK_CL(clGetDeviceIDs( *platform, CL_DEVICE_TYPE_DEFAULT, 1, device, NULL ));
       }
-      delete[] platform_ids;
       return 0;
     }
 
