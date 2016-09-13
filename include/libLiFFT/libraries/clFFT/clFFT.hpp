@@ -95,7 +95,7 @@ namespace clFFT {
 
         PlanType plan_;
 
-        ClFFT(ClFFT& obj) = delete;
+        ClFFT(ClFFT& ) = delete;
         ClFFT& operator=(const ClFFT&) = delete;
 
     public:
@@ -119,7 +119,7 @@ namespace clFFT {
           }
         }
 
-        ClFFT(ClFFT&& obj) = default;
+        ClFFT(ClFFT&&) = default;
         ClFFT& operator=(ClFFT&&) = default;
 
         void operator()(Input& input, Output& output) {

@@ -15,7 +15,7 @@
  */
 #ifndef CONTEXT_HPP_
 #define CONTEXT_HPP_
-#include "../clfft_helper.hpp"
+#include "libLiFFT/libraries/clFFT/clfft_helper.hpp"
 #include <clFFT.h>
 #include <iostream>
 
