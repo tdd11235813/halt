@@ -29,34 +29,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #=============================================================================
-# https://github.com/clMathLibraries/clFFT/blob/master/src/FindclFFT.cmake
-# - with minor changes /tdd11235813
+# 
+if( (NOT DEFINED CLFFT_ROOT) AND DEFINED ENV{CLFFT_ROOT} )
+  set( CLFFT_ROOT $ENV{CLFFT_ROOT} )
+endif()
 
-if(CLFFT_INCLUDE_DIRS)
-  # Already in cache, be silent
-  set (CLFFT_FIND_QUIETLY TRUE)
-endif (CLFFT_INCLUDE_DIRS)
-
-find_path(CLFFT_ROOT_DIR
-    NAMES include/clFFT.h
-    HINTS /usr/local/ ${CLFFT_ROOT} $ENV{CLFFT_ROOT}
-    DOC "clFFT root directory.")
-
-find_path(_CLFFT_INCLUDE_DIRS
+find_path(CLFFT_INCLUDE_DIRS
     NAMES "clFFT.h"
-    PATHS ${CLFFT_ROOT_DIR}
+    PATHS ${CLFFT_ROOT}
     PATH_SUFFIXES "include"
-    NO_DEFAULT_PATH
-    )    
-find_library(_CLFFT_LIBRARY
-    NAMES "clFFT"
-    PATHS ${CLFFT_ROOT_DIR}
-    PATH_SUFFIXES "lib" "lib64"
     NO_DEFAULT_PATH
     )
 
-set(CLFFT_INCLUDE_DIRS ${_CLFFT_INCLUDE_DIRS})
-set(CLFFT_LIBRARIES ${_CLFFT_LIBRARY})
+find_library(CLFFT_LIBRARIES
+    NAMES "clFFT"
+    PATHS ${CLFFT_ROOT}
+    PATH_SUFFIXES "lib" "lib64" "lib64/import"
+    NO_DEFAULT_PATH
+    )
+
+if(CLFFT_LIBRARIES MATCHES ".*.a")
+  set(CLFFT_LIBRARIES ${CLFFT_LIBRARIES};dl)
+endif()
 # handle the QUIETLY and REQUIRED arguments and set CLFFT_FOUND to TRUE if
 # all listed variables are TRUE
 INCLUDE (FindPackageHandleStandardArgs)

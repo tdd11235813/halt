@@ -37,7 +37,6 @@ namespace policies {
    * Takes references to the plan, input, output and their allocators
    */
   template<
-    typename T_Context,
     typename T_Precision,
     class T_InOutTypes,
     bool T_isInplace,
@@ -55,7 +54,6 @@ namespace policies {
    * Both AoS, Both non-strided
    */
   template<
-    typename T_Context,
     typename T_Precision,
     class T_InOutTypes,
     bool T_isInplace,
@@ -63,7 +61,7 @@ namespace policies {
     bool T_isComplexIn,
     bool T_isComplexOut
     >
-  struct Planner< T_Context, T_Precision, T_InOutTypes, T_isInplace, T_numDims, T_isComplexIn, T_isComplexOut, true, true, false, false >
+  struct Planner< T_Precision, T_InOutTypes, T_isInplace, T_numDims, T_isComplexIn, T_isComplexOut, true, true, false, false >
   {
   private:
     using Precision = T_Precision;
@@ -83,7 +81,7 @@ namespace policies {
   private:
     template< class T_Plan, class T_Extents >
     void
-    createPlan(T_Plan& plan, T_Extents& fullExtents, bool useInplaceForHost=false) {
+    createPlan(T_Plan& plan, T_Extents& fullExtents, cl_context ctx, cl_command_queue queue, bool useInplaceForHost=false) {
       assert(plan.handle==0);
       size_t cldims[numDims];
       // switch order since clfft library exposes [Nz][Ny][Nx],
@@ -93,7 +91,7 @@ namespace policies {
       for(auto j=numDims; j>0; --j)
         cldims[numDims-j] = fullExtents[j-1];
       CHECK_CL( clfftCreateDefaultPlan(&plan.handle,
-                                       plan.ctx,
+                                       ctx,
                                        traits::Dims< T_numDims >::value,
                                        cldims) );
       CHECK_CL( clfftSetPlanPrecision(plan.handle,
@@ -148,7 +146,7 @@ namespace policies {
       }
       CHECK_CL(clfftBakePlan(plan.handle,
                              1, // number of queues
-                             &plan.queue,
+                             &queue,
                              nullptr, // callback
                              nullptr)); // user data
     }
@@ -161,7 +159,7 @@ namespace policies {
 
     template< class T_Plan, class T_Allocator >
     void
-    operator()(T_Plan& plan, Input& input, Output& output, bool useInplaceForHost, const T_Allocator& alloc) {
+    operator()(T_Plan& plan, Input& input, Output& output, bool useInplaceForHost, const T_Allocator& alloc, cl_context ctx, cl_command_queue queue) {
       static_assert(!isInplace, "Cannot be used for inplace transforms!");
       auto extents(input.getExtents());
       auto extentsOut(output.getExtents());
@@ -185,33 +183,35 @@ namespace policies {
         size_t size = std::max(numElementsIn*(isComplexIn?2:1),
                                numElementsOut*(isComplexOut?2:1)) * sizeof(Precision);
         checkSize(size);
-        plan.InDevicePtr.reset( alloc.malloc(size, plan.ctx) );
+        plan.InDevicePtr.reset( alloc.malloc(size, ctx) );
       }else{
         size_t inSize = numElementsIn * sizeof(Precision) * (isComplexIn?2:1);
         size_t outSize = numElementsOut * sizeof(Precision) * (isComplexOut?2:1);
         checkSize(inSize);
         checkSize(outSize);
-        if(!Input::IsDeviceMemory::value)
+        if(!Input::IsDeviceMemory::value) {
           plan.InDevicePtr.reset(
-            alloc.malloc(inSize, plan.ctx));
-        if(!Output::IsDeviceMemory::value)
+            alloc.malloc(inSize, ctx));
+        }
+        if(!Output::IsDeviceMemory::value) {
           plan.OutDevicePtr.reset(
-            alloc.malloc(outSize, plan.ctx));
+            alloc.malloc(outSize, ctx));
+        }
       }
       // Always use fullExtents, that is the extents of the real container for R2C/C2R
       // For C2C it does not matter
-      createPlan(plan, isComplexIn ? extentsOut : extents, useInplaceForHost);
+      createPlan(plan, isComplexIn ? extentsOut : extents, ctx, queue, useInplaceForHost);
     }
 
     template< class T_Plan, class T_Allocator >
     void
-    operator()(T_Plan& plan, Input& inOut, const T_Allocator& alloc) {
+    operator()(T_Plan& plan, Input& inOut, const T_Allocator& alloc, cl_context ctx, cl_command_queue queue) {
       size_t size = policies::GetInplaceMemSize<Precision, isComplexIn, isComplexOut, numDims>::get(inOut.getFullExtents());
       checkSize(size);
       if(!Input::IsDeviceMemory::value)
         plan.InDevicePtr.reset(
-          alloc.malloc(size, plan.ctx));
-      createPlan(plan, inOut.getFullExtents());
+          alloc.malloc(size, ctx));
+      createPlan(plan, inOut.getFullExtents(), ctx, queue);
     }
   };
 

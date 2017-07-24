@@ -85,12 +85,12 @@ namespace policies {
       /* H2D */
       void copy(cl_mem dst, const void* src, size_t size, cl_command_queue queue) const
       {
-        CHECK_CL( clEnqueueWriteBuffer(queue, dst, false, 0, size, src, 0, NULL, NULL) );
+        CHECK_CL( clEnqueueWriteBuffer(queue, dst, CL_TRUE, 0, size, src, 0, NULL, NULL) );
       }
       /* D2H */
       void copy(void* dst, cl_mem src, size_t size, cl_command_queue queue) const
       {
-        CHECK_CL( clEnqueueReadBuffer(queue, src, false, 0, size, dst, 0, NULL, NULL) );
+        CHECK_CL( clEnqueueReadBuffer(queue, src, CL_TRUE, 0, size, dst, 0, NULL, NULL) );
       }
       /* D2D */
       void copy(cl_mem dst, cl_mem src, size_t size, cl_command_queue queue) const

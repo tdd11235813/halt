@@ -119,79 +119,102 @@ namespace libraries {
       }
     }
 
+    inline cl_ulong getMaxGlobalMemSize(cl_device_id dev_id)
+    {
+      cl_ulong value = 0;
+      // print device name
+      CHECK_CL(
+          clGetDeviceInfo (dev_id, CL_DEVICE_GLOBAL_MEM_SIZE,
+                           sizeof(cl_ulong), &value, NULL));
+      return value;
+    }
+
+    inline cl_device_type getDeviceType(cl_device_id dev_id)
+    {
+      cl_device_type dev_type;
+      CHECK_CL(
+          clGetDeviceInfo (dev_id, CL_DEVICE_TYPE, sizeof(cl_device_type),
+                           &dev_type, NULL));
+      return dev_type;
+    }
+
     inline std::stringstream getClDeviceInformations(cl_device_id dev_id)
     {
       std::stringstream info;
-      std::vector<std::pair<std::string,std::string> > values;
+      std::vector<std::pair<std::string, std::string> > values;
       char* value = nullptr;
       size_t valueSize = 0;
       cl_uint maxComputeUnits;
       // print device name
-      clGetDeviceInfo(dev_id, CL_DEVICE_NAME, 0, NULL, &valueSize);
-      value = (char*) malloc(valueSize);
-      clGetDeviceInfo(dev_id, CL_DEVICE_NAME, valueSize, value, NULL);
-      values.emplace_back("Device", value);
-      free(value);
+      clGetDeviceInfo (dev_id, CL_DEVICE_NAME, 0, NULL, &valueSize);
+      value = (char*) malloc (valueSize);
+      clGetDeviceInfo (dev_id, CL_DEVICE_NAME, valueSize, value, NULL);
+      values.emplace_back ("Device", value);
+      free (value);
 
       // print hardware device version
-      clGetDeviceInfo(dev_id, CL_DEVICE_VERSION, 0, NULL, &valueSize);
-      value = (char*) malloc(valueSize);
-      clGetDeviceInfo(dev_id, CL_DEVICE_VERSION, valueSize, value, NULL);
-      values.emplace_back("Hardware", value);
-      free(value);
+      clGetDeviceInfo (dev_id, CL_DEVICE_VERSION, 0, NULL, &valueSize);
+      value = (char*) malloc (valueSize);
+      clGetDeviceInfo (dev_id, CL_DEVICE_VERSION, valueSize, value, NULL);
+      values.emplace_back ("Hardware", value);
+      free (value);
 
       // print software driver version
-      clGetDeviceInfo(dev_id, CL_DRIVER_VERSION, 0, NULL, &valueSize);
-      value = (char*) malloc(valueSize);
-      clGetDeviceInfo(dev_id, CL_DRIVER_VERSION, valueSize, value, NULL);
-      values.emplace_back("Software", value);
-      free(value);
+      clGetDeviceInfo (dev_id, CL_DRIVER_VERSION, 0, NULL, &valueSize);
+      value = (char*) malloc (valueSize);
+      clGetDeviceInfo (dev_id, CL_DRIVER_VERSION, valueSize, value, NULL);
+      values.emplace_back ("Software", value);
+      free (value);
 
       // print c version supported by compiler for device
-      clGetDeviceInfo(dev_id, CL_DEVICE_OPENCL_C_VERSION, 0, NULL, &valueSize);
-      value = (char*) malloc(valueSize);
-      clGetDeviceInfo(dev_id, CL_DEVICE_OPENCL_C_VERSION, valueSize, value, NULL);
-      values.emplace_back("OpenCL", value);
-      free(value);
+      clGetDeviceInfo (dev_id, CL_DEVICE_OPENCL_C_VERSION, 0, NULL,
+                       &valueSize);
+      value = (char*) malloc (valueSize);
+      clGetDeviceInfo (dev_id, CL_DEVICE_OPENCL_C_VERSION, valueSize, value,
+                       NULL);
+      values.emplace_back ("OpenCL", value);
+      free (value);
 
       // print parallel compute units
-      clGetDeviceInfo(dev_id, CL_DEVICE_MAX_COMPUTE_UNITS,
-                      sizeof(maxComputeUnits), &maxComputeUnits, NULL);
-      values.emplace_back("ComputeUnits", std::to_string(maxComputeUnits));
-      info << "\"OpenCL Informations\"";
-      for(auto pair : values) {
+      clGetDeviceInfo (dev_id, CL_DEVICE_MAX_COMPUTE_UNITS,
+                       sizeof(maxComputeUnits), &maxComputeUnits, NULL);
+      values.emplace_back ("UsedComputeUnits",
+                           std::to_string (maxComputeUnits));
+
+      values.emplace_back ("MaxGlobalMemSize",
+                           std::to_string (getMaxGlobalMemSize (dev_id)));
+
+      info << "\"ClFFT Informations\"";
+      for (auto pair : values) {
         info << ",\"" << pair.first << "\",\"" << pair.second << '"';
       }
 
-      // clfft version
-      cl_uint  major, minor, patch;
-      clfftGetVersion(&major, &minor, &patch);
-      info << ",\"clfft\",\"" << major << "." << minor << "." << patch <<"\"";
+      // clFFT version
+      cl_uint major, minor, patch;
+      clfftGetVersion (&major, &minor, &patch);
+      info << ",\"clFFT\",\"" << major << "." << minor << "." << patch
+          << "\"";
       return info;
     }
 
-/**
- *
- */
-    inline int findClDevice(cl_device_type devkind, cl_platform_id* platform, cl_device_id* device)
+    inline void findClDevice(cl_device_type devtype, cl_platform_id* platform,
+                             cl_device_id* device)
     {
       cl_uint num_of_platforms = 0, num_of_devices = 0;
       cl_device_id device_id = 0;
-      if (clGetPlatformIDs(0, NULL, &num_of_platforms) != CL_SUCCESS)
-      {
-        std::cerr << "Unable to get platform_id" << std::endl;
-        return 1;
-      }
+      if (clGetPlatformIDs (0, NULL, &num_of_platforms) != CL_SUCCESS)
+        throw std::runtime_error ("Unable to get platform_id");
+
       cl_platform_id *platform_ids = new cl_platform_id[num_of_platforms];
-      if (clGetPlatformIDs(num_of_platforms, platform_ids, NULL) != CL_SUCCESS)
-      {
-        std::cerr << "Unable to get platform_ids" << std::endl;
+      if (clGetPlatformIDs (num_of_platforms, platform_ids, NULL)
+          != CL_SUCCESS) {
         delete[] platform_ids;
-        return 1;
+        throw std::runtime_error ("Unable to get platform id array");
       }
       bool found = false;
-      for(unsigned i=0; i<num_of_platforms; i++) {
-        if(clGetDeviceIDs(platform_ids[i], devkind, 1, &device_id, &num_of_devices) == CL_SUCCESS){
+      for (cl_uint i = 0; i < num_of_platforms; i++) {
+        if (clGetDeviceIDs (platform_ids[i], devtype, 1, &device_id,
+                            &num_of_devices) == CL_SUCCESS) {
           found = true;
           *platform = platform_ids[i];
           *device = device_id;
@@ -199,11 +222,77 @@ namespace libraries {
         }
       }
       delete[] platform_ids;
-      if(!found){
-        CHECK_CL(clGetPlatformIDs( 1, platform, NULL ));
-        CHECK_CL(clGetDeviceIDs( *platform, CL_DEVICE_TYPE_DEFAULT, 1, device, NULL ));
+      if (!found) {
+        CHECK_CL(clGetPlatformIDs (1, platform, NULL));
+        CHECK_CL(clGetDeviceIDs (*platform, CL_DEVICE_TYPE_DEFAULT, 1, device,
+                            NULL));
       }
-      return 0;
+    }
+
+    inline std::stringstream listClDevices()
+    {
+      cl_uint num_of_platforms = 0;
+      if (clGetPlatformIDs (0, NULL, &num_of_platforms) != CL_SUCCESS)
+        throw std::runtime_error ("Unable to get platform_id");
+
+      cl_platform_id *platform_ids = new cl_platform_id[num_of_platforms];
+      if (clGetPlatformIDs (num_of_platforms, platform_ids, NULL)
+          != CL_SUCCESS) {
+        delete[] platform_ids;
+        throw std::runtime_error ("Unable to get platform id array");
+      }
+
+      std::stringstream info;
+      cl_uint num_of_devices = 0;
+      for (cl_uint i = 0; i < num_of_platforms; i++) {
+        CHECK_CL(
+            clGetDeviceIDs (platform_ids[i], CL_DEVICE_TYPE_ALL, 0, NULL,
+                            &num_of_devices));
+        cl_device_id* devices = new cl_device_id[num_of_devices];
+        if (clGetDeviceIDs (platform_ids[i], CL_DEVICE_TYPE_ALL,
+                            num_of_devices, devices, NULL) != CL_SUCCESS) {
+          delete[] devices;
+          throw std::runtime_error ("Unable to get devices");
+        }
+
+        for (cl_uint j = 0; j < num_of_devices; ++j) {
+          info << "\"ID\"," << i << ":" << j << ","
+              << getClDeviceInformations (devices[j]).str () << std::endl;
+        } // devices
+        delete[] devices;
+      } // platforms
+      delete[] platform_ids;
+      return info;
+    }
+
+    inline void getPlatformAndDeviceByID(cl_platform_id* platform_id,
+                                         cl_device_id* device_id,
+                                         cl_uint id_platform, cl_uint id_device)
+    {
+      assert (id_platform >= 0);
+      assert (id_device >= 0);
+      cl_uint num_of_platforms = 0;
+      if (clGetPlatformIDs (0, NULL, &num_of_platforms) != CL_SUCCESS)
+        throw std::runtime_error ("Unable to get platform_id");
+      if (num_of_platforms <= id_platform)
+        throw std::runtime_error ("Unable to get platform_id");
+
+      cl_platform_id *platform_ids = new cl_platform_id[id_platform + 1];
+      CHECK_CL(clGetPlatformIDs (id_platform + 1, platform_ids, NULL));
+
+      cl_uint num_of_devices = 0;
+      CHECK_CL(
+          clGetDeviceIDs (platform_ids[id_platform], CL_DEVICE_TYPE_ALL, 0,
+                          NULL, &num_of_devices));
+      if (num_of_devices <= id_device)
+        throw std::runtime_error ("Unable to get device_id");
+
+      cl_device_id* devices = new cl_device_id[id_device + 1];
+      CHECK_CL(
+          clGetDeviceIDs (platform_ids[id_platform], CL_DEVICE_TYPE_ALL,
+                          id_device + 1, devices, NULL));
+      *platform_id = platform_ids[id_platform];
+      *device_id = devices[id_device];
     }
 
   } // clFFT

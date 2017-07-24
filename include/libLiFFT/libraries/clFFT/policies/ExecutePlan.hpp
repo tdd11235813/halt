@@ -88,13 +88,14 @@ namespace policies {
                Input& input,
                Output& output,
                bool useInplaceForHost,
-               const T_Copier& copy) {
+               const T_Copier& copy,
+               cl_command_queue queue) {
       using LiFFT::policies::safe_ptr_cast;
       static_assert(!isInplace, "Cannot be used for inplace transforms!");
       size_t memsizeIn = sizeof(Precision)*input.getNumElements() * (isComplexIn?2:1);
       size_t memsizeOut = sizeof(Precision)*output.getNumElements() * (isComplexOut?2:1);
       cl_mem pIn = 0;
-      if( plan.InDevicePtr )
+      if( plan.InDevicePtr)
       {
         // host w unpitched reals to pitched reals in device buffer
         if(useInplaceForHost && !isComplexIn) {
@@ -103,17 +104,17 @@ namespace policies {
           size_t pitch = (fullExtents[numDims-1]/2+1)*2*sizeof(Precision);
           size_t h = memsizeIn/sizeof(Precision) / fullExtents[numDims-1];
           copy.copyPitched(plan.InDevicePtr.get(),
-                           input.getDataPtr(),
-                           plan.queue,
+                           reinterpret_cast<void*>(input.getDataPtr()),
+                           queue,
                            w,
                            h,
                            pitch
             );
         }else
           copy.copy(plan.InDevicePtr.get(),
-                    input.getDataPtr(),
+                    reinterpret_cast<void*>(input.getDataPtr()),
                     memsizeIn,
-                    plan.queue);
+                    queue);
         pIn = safe_ptr_cast<cl_mem>(plan.InDevicePtr.get());
       }else if(Input::IsDeviceMemory::value)
         pIn = reinterpret_cast<cl_mem>(input.getDataPtr());
@@ -130,7 +131,7 @@ namespace policies {
       else
         throw std::runtime_error("Neither output nor plan has device pointer.");
 
-      CHECK_CL( Executer()(plan.handle, plan.queue, pIn, pOut) );
+      CHECK_CL( Executer()(plan.handle, queue, pIn, pOut) );
 
       if(plan.OutDevicePtr || !Output::IsDeviceMemory::value) {
         if(useInplaceForHost && !isComplexOut) {
@@ -138,22 +139,21 @@ namespace policies {
           size_t w = fullExtents[numDims-1] * sizeof(Precision);
           size_t pitch = (fullExtents[numDims-1]/2+1)*2*sizeof(Precision);
           size_t h = memsizeOut/sizeof(Precision) / fullExtents[numDims-1];
-          copy.copyPitched(output.getDataPtr(),
+          copy.copyPitched(reinterpret_cast<void*>(output.getDataPtr()),
                            pOut,
-                           plan.queue,
+                           queue,
                            w,
                            h,
                            pitch
             );
         }else
-          copy.copy(output.getDataPtr(), pOut, memsizeOut, plan.queue);
-        CHECK_CL(clFinish(plan.queue)); // finish transfers
+          copy.copy(output.getDataPtr(), pOut, memsizeOut, queue);
       }
     }
 
     template< class T_Plan, class T_Copier >
     void
-    operator()(T_Plan& plan, Input& inOut, const T_Copier& copy) {
+    operator()(T_Plan& plan, Input& inOut, const T_Copier& copy, cl_command_queue queue) {
       using LiFFT::policies::safe_ptr_cast;
       static_assert(isInplace, "Must be used for inplace transforms!");
 
@@ -162,7 +162,7 @@ namespace policies {
         copy.copy(plan.InDevicePtr.get(),
                   inOut.getDataPtr(),
                   inOut.getMemSize(),
-                  plan.queue);
+                  queue);
         pIn = plan.InDevicePtr.get();
       }else if(Input::IsDeviceMemory::value)
         pIn = reinterpret_cast<cl_mem>(inOut.getDataPtr());
@@ -171,15 +171,14 @@ namespace policies {
 
       cl_mem pOut = pIn;
 
-      CHECK_CL( Executer()(plan.handle, plan.queue, pIn, pOut) );
+      CHECK_CL( Executer()(plan.handle, queue, pIn, pOut) );
 
       if( plan.InDevicePtr ) {
         auto pOutHost = inOut.getDataPtr();
         copy.copy(pOutHost,
                   pOut,
                   inOut.getMemSize(),
-                  plan.queue);
-        CHECK_CL(clFinish(plan.queue)); // finish transfers
+                  queue);
       }
     }
   };

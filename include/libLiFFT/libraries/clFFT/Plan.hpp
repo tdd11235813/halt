@@ -26,17 +26,14 @@ namespace LiFFT {
 namespace libraries {
 namespace clFFT {
 
-    template< typename T_Context, class T_Deleter >
+    template<class T_Deleter>
     struct Plan
     {
     private:
 
-        T_Context context;
-
         struct Deleter
         {
-            void
-            operator()(cl_mem ptr)
+            void operator()(cl_mem ptr)
             {
                 T_Deleter().free(ptr);
             }
@@ -46,9 +43,6 @@ namespace clFFT {
         Plan& operator=(const Plan&) = delete;
 
     public:
-        /// comes from T_Context context
-        cl_context ctx = 0;
-        cl_command_queue queue = 0;
         /// clfft must be initialized before, see policies::Context
         clfftPlanHandle handle = 0;
         std::unique_ptr<_cl_mem, Deleter> InDevicePtr;
@@ -56,43 +50,38 @@ namespace clFFT {
 
         Plan()
         {
-          cl_int err = 0;
-          ctx = context.context();
-          queue = context.queue();
-          CHECK_CL(err);
         }
 
         Plan(Plan&& obj)
-        : ctx(obj.ctx), queue(obj.queue), handle(obj.handle),
-          InDevicePtr(std::move(obj.InDevicePtr)), OutDevicePtr(std::move(obj.OutDevicePtr))
+                : handle(obj.handle), InDevicePtr(std::move(obj.InDevicePtr)),
+                  OutDevicePtr(std::move(obj.OutDevicePtr))
         {
-          obj.ctx = 0;
-          obj.queue = 0;
-          obj.handle = 0;
+            obj.handle = 0;
         }
 
         Plan& operator=(Plan&& obj)
         {
-            if(this!=&obj)
+            if(this != &obj)
                 return *this;
-            ctx = obj.ctx; obj.ctx = 0;
-            queue = obj.queue; obj.queue = 0;
-            handle = obj.handle; obj.handle = 0;
+            handle = obj.handle;
+            obj.handle = 0;
             InDevicePtr = std::move(obj.InDevicePtr);
             OutDevicePtr = std::move(obj.OutDevicePtr);
             return *this;
         }
 
-        void cleanup() {
-            if(handle){
-              CHECK_CL(clfftDestroyPlan(&handle));
-              handle=0;
+        void cleanup()
+        {
+            if(handle) {
+                CHECK_CL(clfftDestroyPlan(&handle));
+                handle = 0;
             }
         }
-        ~Plan() {
-          cleanup();
+        ~Plan()
+        {
+            cleanup();
         }
-  };
+    };
 
 }  // namespace clFFT
 }  // namespace libraries

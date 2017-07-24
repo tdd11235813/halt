@@ -34,7 +34,7 @@ macro(CheckAndAddFlag flag)
 endmacro()
 
 project(libLiFFT)
-cmake_minimum_required(VERSION 2.8.0)
+cmake_minimum_required(VERSION 3.1)
 
 set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} $ENV{HOME}/Software/tiff $ENV{HOME}/Software/FFTW)
 if(NOT CMAKE_BUILD_TYPE)
@@ -53,12 +53,13 @@ include_directories(${TIFF_INCLUDE_DIR})
 # OpenCL+clFFT
 ###############################################################################
 find_package(OpenCL)
-if(OPENCL_FOUND)
+if(OpenCL_FOUND)
   find_package(clFFT)
   set(LiFFT_ENABLE_OPENCL ${CLFFT_FOUND} CACHE BOOL "Use OpenCL/clFFT")
   if(CLFFT_FOUND AND LiFFT_ENABLE_OPENCL)
-    set(LIBS ${LIBS} ${CLFFT_LIBRARIES} ${OPENCL_LIBRARIES})
-    include_directories(${CLFFT_INCLUDE_DIRS})
+    message(">> OpenCL/clFFT enabled.")
+    set(LIBS ${LIBS} ${CLFFT_LIBRARIES} ${OpenCL_LIBRARIES})
+    include_directories(${OpenCL_INCLUDE_DIRS} ${CLFFT_INCLUDE_DIRS})
   endif()
 endif()
 
