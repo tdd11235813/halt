@@ -50,7 +50,7 @@ addons:
 
 env:
     global:
-        - LIFFT_BOOST=1.55.0
+        - LIFFT_BOOST=1.60.0
     matrix:
         - LIFFT_BUILD_TYPE=Debug LIFFT_CUDA=OFF LIFFT_CLANG_VER=3.8
         - LIFFT_BUILD_TYPE=Release LIFFT_CUDA=OFF LIFFT_CLANG_VER=3.8

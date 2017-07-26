@@ -29,7 +29,7 @@ namespace bmpl = boost::mpl;
 
 namespace LiFFT {
 
-    struct StreamUnused {};
+    struct DefaultQueue {};
 
     /**
      * Assembles an FFT
@@ -52,7 +52,7 @@ namespace LiFFT {
             typename T_InputWrapper,
             typename T_OutputWrapper,
             bool T_constructWithReadOnly = true,
-            typename T_Stream = StreamUnused
+            typename T_Queue = DefaultQueue
             >
     class FFT
     {
@@ -61,13 +61,13 @@ namespace LiFFT {
         using Output = T_OutputWrapper;
         static constexpr bool constructWithReadOnly = T_constructWithReadOnly;
         template<typename T>
-        using EnableIfStreamPresentAndInplace = typename std::enable_if<!std::is_same<T_Stream,StreamUnused>::value && T_InputWrapper::FFT_Def::isInplace,T>;
+        using EnableIfQueuePresentAndInplace = typename std::enable_if<!std::is_same<T_Queue,DefaultQueue>::value && T_InputWrapper::FFT_Def::isInplace,T>;
         template<typename T>
-        using EnableIfNoStreamAndInplace = typename std::enable_if<std::is_same<T_Stream,StreamUnused>::value && T_InputWrapper::FFT_Def::isInplace,T>;
+        using EnableIfNoQueueAndInplace = typename std::enable_if<std::is_same<T_Queue,DefaultQueue>::value && T_InputWrapper::FFT_Def::isInplace,T>;
         template<typename T>
-        using EnableIfStreamPresentAndOutplace = typename std::enable_if<!std::is_same<T_Stream,StreamUnused>::value && !T_InputWrapper::FFT_Def::isInplace,T>;
+        using EnableIfQueuePresentAndOutplace = typename std::enable_if<!std::is_same<T_Queue,DefaultQueue>::value && !T_InputWrapper::FFT_Def::isInplace,T>;
         template<typename T>
-        using EnableIfNoStreamAndOutplace = typename std::enable_if<std::is_same<T_Stream,StreamUnused>::value && !T_InputWrapper::FFT_Def::isInplace,T>;
+        using EnableIfNoQueueAndOutplace = typename std::enable_if<std::is_same<T_Queue,DefaultQueue>::value && !T_InputWrapper::FFT_Def::isInplace,T>;
 
         using FFT_Def = typename Input::FFT_Def;
         static_assert(std::is_same< FFT_Def, typename Output::FFT_Def>::value, "FFT types of input and output differs");
@@ -90,16 +90,16 @@ namespace LiFFT {
             static_assert(isInplace, "Must not be called for out-of-place transforms");
         }
 
-        template<typename T=int, typename EnableIfStreamPresentAndOutplace<T>::type=0 >
-        explicit FFT(Input& input, Output& output, T_Stream& stream)
-        : m_lib(input, output, stream)
+        template<typename T=int, typename EnableIfQueuePresentAndOutplace<T>::type=0 >
+        explicit FFT(Input& input, Output& output, T_Queue& queue)
+        : m_lib(input, output, queue)
         {
             static_assert(!isInplace, "Must not be called for inplace transforms");
         }
 
-        template<typename T=int, typename EnableIfStreamPresentAndInplace<T>::type=0 >
-        explicit FFT(Input& inOut, T_Stream& stream)
-        : m_lib(inOut, stream)
+        template<typename T=int, typename EnableIfQueuePresentAndInplace<T>::type=0 >
+        explicit FFT(Input& inOut, T_Queue& queue)
+        : m_lib(inOut, queue)
         {
             static_assert(isInplace, "Must not be called for out-of-place transforms");
         }
@@ -108,7 +108,7 @@ namespace LiFFT {
         : m_lib(std::move(obj.m_lib))
         {}
 
-        template<typename T=int, typename EnableIfNoStreamAndOutplace<T>::type=0 >
+        template<typename T=int, typename EnableIfNoQueueAndOutplace<T>::type=0 >
         void operator()(Input& input, Output& output)
         {
             static_assert(!isInplace, "Must not be called for inplace transforms");
@@ -122,8 +122,8 @@ namespace LiFFT {
             output.postProcess();
         }
 
-        template<typename T=int, typename EnableIfStreamPresentAndOutplace<T>::type=0 >
-        void operator()(Input& input, Output& output, T_Stream& stream)
+        template<typename T=int, typename EnableIfQueuePresentAndOutplace<T>::type=0 >
+        void operator()(Input& input, Output& output, T_Queue& queue)
         {
             static_assert(!isInplace, "Must not be called for inplace transforms");
             // Set full extents for C2R/R2C (rest is set in constructor)
@@ -132,11 +132,11 @@ namespace LiFFT {
             else if(FFT_Def::kind == FFT_Kind::Real2Complex)
                 output.setFullExtents(input.getExtents());
             input.preProcess();
-            m_lib(input, output, stream);
+            m_lib(input, output, queue);
             output.postProcess();
         }
 
-        template<typename T=int, typename EnableIfNoStreamAndInplace<T>::type=0 >
+        template<typename T=int, typename EnableIfNoQueueAndInplace<T>::type=0 >
         void operator()(Input& inout)
         {
             static_assert(isInplace, "Must not be called for out-of-place transforms");
@@ -145,12 +145,12 @@ namespace LiFFT {
             inout.postProcess();
         }
 
-        template<typename T=int, typename EnableIfStreamPresentAndInplace<T>::type=0 >
-        void operator()(Input& inout, T_Stream& stream)
+        template<typename T=int, typename EnableIfQueuePresentAndInplace<T>::type=0 >
+        void operator()(Input& inout, T_Queue& queue)
         {
             static_assert(isInplace, "Must not be called for out-of-place transforms");
             inout.preProcess();
-            m_lib(inout, stream);
+            m_lib(inout, queue);
             inout.postProcess();
         }
     };
@@ -180,27 +180,27 @@ namespace LiFFT {
 
     template<
         class T_Library,
-        typename T_Stream,
+        typename T_Queue,
         bool T_constructWithReadOnly = true,
         typename T_InputWrapper,
         typename T_OutputWrapper
         >
-    FFT< T_Library, T_InputWrapper, T_OutputWrapper, T_constructWithReadOnly, T_Stream >
-    makeFFTOnStream(T_InputWrapper& input, T_OutputWrapper& output, T_Stream& stream)
+    FFT< T_Library, T_InputWrapper, T_OutputWrapper, T_constructWithReadOnly, T_Queue >
+    makeFFTInQueue(T_InputWrapper& input, T_OutputWrapper& output, T_Queue& queue)
     {
-        return FFT< T_Library, T_InputWrapper, T_OutputWrapper, T_constructWithReadOnly, T_Stream >(input, output, stream);
+        return FFT< T_Library, T_InputWrapper, T_OutputWrapper, T_constructWithReadOnly, T_Queue >(input, output, queue);
     }
 
     template<
         class T_Library,
-        typename T_Stream,
+        typename T_Queue,
         bool T_constructWithReadOnly = true,
         typename T_DataWrapper
         >
-    FFT< T_Library, T_DataWrapper, T_DataWrapper, T_constructWithReadOnly, T_Stream >
-    makeFFTOnStream(T_DataWrapper& input, T_Stream& stream)
+    FFT< T_Library, T_DataWrapper, T_DataWrapper, T_constructWithReadOnly, T_Queue >
+    makeFFTInQueue(T_DataWrapper& input, T_Queue& queue)
     {
-        return FFT< T_Library, T_DataWrapper, T_DataWrapper, T_constructWithReadOnly, T_Stream >(input, stream);
+        return FFT< T_Library, T_DataWrapper, T_DataWrapper, T_constructWithReadOnly, T_Queue >(input, queue);
     }
 
 

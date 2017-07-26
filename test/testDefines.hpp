@@ -45,7 +45,7 @@ namespace LiFFTTest{
     #ifdef WITH_CUDA
     using TestLibrary = LiFFT::libraries::cuFFT::CuFFT<>;
     #elif defined(WITH_OPENCL)
-    using TestLibrary = LiFFT::libraries::clFFT::ClFFT<>;
+    using TestLibrary = LiFFT::libraries::clFFT::ClFFTNoContextAPI;
     #else
     using TestLibrary = LiFFT::libraries::fftw::FFTW<>;
     #endif

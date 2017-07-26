@@ -23,13 +23,24 @@ namespace libraries {
 namespace clFFT {
 namespace policies {
 
+    template<bool T_Async=false>
+    struct Blocking {
+        constexpr static cl_bool value = CL_TRUE;
+    };
+
+    template<>
+    struct Blocking<true> {
+        constexpr static cl_bool value = CL_FALSE;
+    };
+
     /**
      * Copier
      * https://github.com/clMathLibraries/clFFT
      */
+    template<bool T_Async=false>
     struct OpenCLMemCpy
     {
-    public:
+
       /* H2D */
       void copyPitched(cl_mem dst,
                        const void* src,
@@ -42,7 +53,7 @@ namespace policies {
         size_t region[3] = {w, h, 1};
         CHECK_CL(clEnqueueWriteBufferRect( queue,
                                            dst,
-                                           CL_TRUE, // blocking_write
+                                           Blocking<T_Async>::value,
                                            offset, // buffer origin
                                            offset, // host origin
                                            region,
@@ -68,7 +79,7 @@ namespace policies {
         size_t region[3] = {w, h, 1};
         CHECK_CL(clEnqueueReadBufferRect( queue,
                                           src,
-                                          CL_TRUE, // blocking_write
+                                          Blocking<T_Async>::value,
                                           offset, // buffer origin
                                           offset, // host origin
                                           region,
@@ -85,12 +96,16 @@ namespace policies {
       /* H2D */
       void copy(cl_mem dst, const void* src, size_t size, cl_command_queue queue) const
       {
-        CHECK_CL( clEnqueueWriteBuffer(queue, dst, CL_TRUE, 0, size, src, 0, NULL, NULL) );
+        CHECK_CL( clEnqueueWriteBuffer(queue, dst,
+                                       Blocking<T_Async>::value,
+                                       0, size, src, 0, NULL, NULL) );
       }
       /* D2H */
       void copy(void* dst, cl_mem src, size_t size, cl_command_queue queue) const
       {
-        CHECK_CL( clEnqueueReadBuffer(queue, src, CL_TRUE, 0, size, dst, 0, NULL, NULL) );
+        CHECK_CL( clEnqueueReadBuffer(queue, src,
+                                      Blocking<T_Async>::value,
+                                      0, size, dst, 0, NULL, NULL) );
       }
       /* D2D */
       void copy(cl_mem dst, cl_mem src, size_t size, cl_command_queue queue) const
