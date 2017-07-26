@@ -26,6 +26,11 @@ namespace libraries {
 namespace clFFT {
 namespace policies {
 
+    /**
+     * This Singleton takes care, that only one clfft setup is done, otherwise
+     * errors might happen at clfft execution (invalid plans) due to multiple
+     * instances of clfft at the same time.
+     */
     struct ClFFTLibrary
     {
         static ClFFTLibrary& getInstance()
@@ -91,21 +96,34 @@ namespace policies {
      * If no GPU is found, CPUs are used by OpenCL. For own OpenCL context and
      * device, use the ContextWrapper class.
      */
+    template<bool T_Async=false>
     class ContextLocal : private Context
     {
     public:
+
+        constexpr static bool AsyncEnabled = T_Async;
+
         cl_context context()
         {
             return ctx_;
         }
+
         cl_device_id device()
         {
             return dev_;
         }
+
         cl_command_queue queue()
         {
             return queue_;
         }
+
+        template< typename T=int, typename std::enable_if<AsyncEnabled,T>::type = 0 >
+        void sync_queue()
+        {
+            CHECK_CL(clFinish(queue_));
+        }
+
         ContextLocal()
         : ContextLocal(ContextDevice::GPU)
         {
@@ -170,80 +188,85 @@ namespace policies {
     /**
      * A singleton by using a single ContextLocal instance.
      */
+    template<bool T_Async=false>
     class ContextGlobal
     {
     private:
-        static ContextLocal& getInstance()
+
+        static ContextLocal<T_Async>& getInstance()
         {
-            static ContextLocal instance;
+            static ContextLocal<T_Async> instance;
             return instance;
         }
+
     public:
+
+        constexpr static bool AsyncEnabled = T_Async;
+
         cl_context context()
         {
             return getInstance().context();
         }
+
         cl_device_id device()
         {
             return getInstance().device();
         }
+
         cl_command_queue queue()
         {
             return getInstance().queue();
+        }
+
+        template< typename T=int, typename std::enable_if<AsyncEnabled,T>::type = 0 >
+        void sync_queue()
+        {
+            CHECK_CL(clFinish(queue()));
         }
     };
 
     /**
      * Wraps OpenCL context and device given by user.
      */
+    template<bool T_Async=false>
     class ContextWrapper
     {
     public:
-        static void wrap(cl_context c, cl_device_id d)
-        {
-            wrap(c, d, 0);
-        }
-        static void wrap(cl_context c, cl_device_id d, cl_command_queue q)
+
+        constexpr static bool AsyncEnabled = T_Async;
+        cl_context ctx_ = nullptr;
+        cl_command_queue queue_ = nullptr;
+        cl_device_id dev_ = nullptr;
+
+        explicit ContextWrapper(cl_context c, cl_device_id d, cl_command_queue q)
         {
             if(!ClFFTLibrary::getInstance().ready())
                 throw std::runtime_error("Could not initialize clfft library.");
-            context_static(c);
-            device_static(d);
-            if(q != 0)
-                queue_static(q);
+            assert(c!=nullptr && d!=nullptr && q!=nullptr);
+            ctx_ = c;
+            dev_ = d;
+            queue_ = q;
         }
-        static cl_context context_static(cl_context c = 0)
-        {
-            static cl_context ctx; // init
-            if(c != 0)
-                ctx = c; // re-assign
-            return ctx;
-        }
-        static cl_device_id device_static(cl_device_id d = 0)
-        {
-            static cl_device_id dev; // init
-            if(d != 0)
-                dev = d; // re-assign
-            return dev;
-        }
-        static cl_command_queue queue_static(cl_command_queue q = 0)
-        {
-            static cl_command_queue queue; // init
-            if(q != 0)
-                queue = q; // re-assign
-            return queue;
-        }
+
         cl_context context()
         {
-            return context_static();
+            return ctx_;
         }
+
         cl_device_id device()
         {
-            return device_static();
+            return dev_;
         }
+
         cl_command_queue queue()
         {
-            return queue_static();
+            return queue_;
+        }
+
+        template< typename T=int, typename std::enable_if<AsyncEnabled,T>::type = 0 >
+        void sync_queue()
+        {
+            CHECK_CL(clFinish(queue()));
         }
     };
 }

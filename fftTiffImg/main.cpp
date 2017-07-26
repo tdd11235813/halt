@@ -25,7 +25,7 @@
     using FFT_LIB = LiFFT::libraries::cuFFT::CuFFT<>;
 #elif defined(WITH_OPENCL)
 #   include "libLiFFT/libraries/clFFT/clFFT.hpp"
-    using FFT_LIB = LiFFT::libraries::clFFT::ClFFT<>;
+    using FFT_LIB = LiFFT::libraries::clFFT::ClFFT<LiFFT::libraries::clFFT::NoContextAPI>;
 #else
 #   include "libLiFFT/libraries/fftw/FFTW.hpp"
     using FFT_LIB = LiFFT::libraries::fftw::FFTW<>;
