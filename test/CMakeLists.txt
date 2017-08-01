@@ -33,6 +33,8 @@ if(CUDA_FOUND AND LiFFT_ENABLE_CUDA)
         "*.cu"
         "*.hpp"
     )
+
+    list(REMOVE_ITEM LiFFT_Test_FILES ${CMAKE_CURRENT_SOURCE_DIR}/testOpenCL.cpp)
     cuda_add_executable(Test ${LiFFT_Test_FILES})
     CUDA_ADD_CUFFT_TO_TARGET(Test)
 else()
@@ -40,13 +42,13 @@ else()
         "*.cpp"
         "*.hpp"
     )
+    if(NOT(CLFFT_FOUND AND LiFFT_ENABLE_OPENCL))
+        list(REMOVE_ITEM LiFFT_Test_FILES ${CMAKE_CURRENT_SOURCE_DIR}/testOpenCL.cpp)
+    endif()
     list(REMOVE_ITEM LiFFT_Test_FILES ${CMAKE_CURRENT_SOURCE_DIR}/minIncludes.cpp)
     add_executable(Test ${LiFFT_Test_FILES})
 endif()
 
-if(NOT(CLFFT_FOUND AND LiFFT_ENABLE_OPENCL))
-    list(REMOVE_ITEM LiFFT_Test_FILES ${CMAKE_CURRENT_SOURCE_DIR}/testOpenCL.cpp)
-endif()
 
 target_link_libraries(Test ${LIBS} ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
 
