@@ -52,17 +52,17 @@ env:
     global:
         - LIFFT_BOOST=1.60.0
     matrix:
-        - LIFFT_BUILD_TYPE=Debug LIFFT_CUDA=OFF LIFFT_CLANG_VER=3.8
-        - LIFFT_BUILD_TYPE=Release LIFFT_CUDA=OFF LIFFT_CLANG_VER=3.8
+        - LIFFT_BUILD_TYPE=Debug LIFFT_CUDA=OFF LIFFT_CLANG_VER=3.8 LIFFT_OPENCL=OFF 
+        - LIFFT_BUILD_TYPE=Release LIFFT_CUDA=OFF LIFFT_CLANG_VER=3.8 LIFFT_OPENCL=OFF 
 
 matrix:
     include:
         - os: linux
           compiler: gcc
-          env: LIFFT_BUILD_TYPE=Release LIFFT_CUDA=OFF LIFFT_BOOST=1.60.0
+          env: LIFFT_BUILD_TYPE=Release LIFFT_CUDA=OFF LIFFT_OPENCL=OFF LIFFT_BOOST=1.60.0
         - os: linux
           compiler: clang
-          env: LIFFT_BUILD_TYPE=Release LIFFT_CUDA=OFF LIFFT_CLANG_VER=3.5
+          env: LIFFT_BUILD_TYPE=Release LIFFT_CUDA=OFF LIFFT_OPENCL=OFF LIFFT_CLANG_VER=3.5
           addons:
               apt:
                   sources:
@@ -75,18 +75,23 @@ matrix:
                       - libfftw3-dev
         - os: linux
           compiler: gcc
-          env: LIFFT_BUILD_TYPE=Debug LIFFT_CUDA=ON LIFFT_CUDA_VER=7.0-28
+          env: LIFFT_BUILD_TYPE=Debug LIFFT_CUDA=ON LIFFT_CUDA_VER=8.0.61-1 LIFFT_OPENCL=OFF
           sudo: required
         - os: linux
           compiler: gcc
-          env: LIFFT_BUILD_TYPE=Release LIFFT_CUDA=ON LIFFT_CUDA_VER=7.0-28
+          env: LIFFT_BUILD_TYPE=Release LIFFT_CUDA=ON LIFFT_CUDA_VER=8.0.61-1 LIFFT_OPENCL=OFF
+          sudo: required
+        - os: linux
+          compiler: gcc
+          env: LIFFT_BUILD_TYPE=RelWithDebInfo LIFFT_CUDA=OFF LIFFT_CUDA_VER=8.0.61-1 LIFFT_OPENCL=ON LIFFT_CLFFT_VER=2.12.2
           sudo: required
   
 before_install:
     - |
-        if [ "${LIFFT_CUDA}" == "ON" ]; then
-            wget http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1204/x86_64/cuda-repo-ubuntu1204_${LIFFT_CUDA_VER}_amd64.deb
-            sudo dpkg -i cuda-repo-ubuntu1204_${LIFFT_CUDA_VER}_amd64.deb
+        if [ "${LIFFT_CUDA}" == "ON" ] || [ "${LIFFT_OPENCL}" == "ON" ]; then
+            cd $HOME/dependencies
+            if [ ! -e "cuda.deb" ]; then wget https://developer.nvidia.com/compute/cuda/8.0/Prod2/local_installers/cuda-repo-ubuntu1404-8-0-local-ga2_${LIFFT_CUDA_VER}_amd64-deb -q -O cuda.deb; fi
+            sudo dpkg -i cuda.deb
             sudo apt-get update -qq
         fi
 
@@ -95,7 +100,7 @@ install:
     - if [ "${CXX}" == "clang++" ]; then export CXX=clang++-${LIFFT_CLANG_VER}; export CC=clang-${LIFFT_CLANG_VER}; export GCOV="gcov"; fi
     # CUDA
     - |
-        if [ "${LIFFT_CUDA}" == "ON" ]; then
+        if [ "${LIFFT_CUDA}" == "ON" ] || [ "${LIFFT_OPENCL}" == "ON" ]; then
             CUDA_APT_VER=${LIFFT_CUDA_VER%-*}
             CUDA_APT_VER=${CUDA_APT_VER/./-}
             CUDA_PACKAGES="cuda-drivers cuda-core-${CUDA_APT_VER} cuda-cudart-dev-${CUDA_APT_VER} cuda-cufft-dev-${CUDA_APT_VER}"
@@ -104,6 +109,19 @@ install:
             export CUDA_HOME=/usr/local/cuda-${LIFFT_CUDA_VER%%-*}
             export LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
             export PATH=${CUDA_HOME}/bin:${PATH}
+        fi
+    # clfft
+    - |
+        if [ "${LIFFT_OPENCL}" == "ON" ]; then
+            export OPENCL_INC=$CUDA_HOME/include
+            export CLFFT_ROOT=$HOME/dependencies/clfft-${LIFFT_CLFFT_VER}
+            if [ ! -e "${CLFFT_ROOT}/lib64/libclFFT.so" ]; then
+                git clone https://github.com/clMathLibraries/clFFT.git
+                (cd clFFT; git checkout ${LIFFT_CLFFT_VER})
+                (cd clFFT/src; cmake -DBUILD64=ON -DBUILD_CALLBACK_CLIENT=OFF -DBUILD_CLIENT=OFF -DBUILD_EXAMPLES=OFF -DBUILD_LOADLIBRARIES=ON -DBUILD_RUNTIME=ON -DBUILD_SHARED_LIBS=ON -DBUILD_TEST=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$CLFFT_ROOT -DSUFFIX_LIB=64 -DOPENCL_INCLUDE_DIRS=$OPENCL_INC; make; make install)
+            else
+                echo "Using cached clfft version at $CLFFT_ROOT"
+            fi
         fi
     # Boost
     - export LIFFT_BOOST_FOLDER="boost_${LIFFT_BOOST//./_}"
@@ -115,7 +133,8 @@ install:
             tar jxf boost.tar.bz2 --strip-components=1 -C $BOOST_ROOT
             (cd $BOOST_ROOT; ./bootstrap.sh --with-libraries=program_options,filesystem,system,test)
             (cd $BOOST_ROOT; ./b2 --prefix=$BOOST_ROOT -d0 install)
-        else echo "Using cached boost version at $BOOST_ROOT"
+        else
+            echo "Using cached boost version at $BOOST_ROOT"
         fi
     - |
         export LiFFT_COVERAGE=""
@@ -135,7 +154,12 @@ install:
 script:
     - mkdir build && cd build
     - set -e
-    - cmake ../ -DCMAKE_BUILD_TYPE=${LIFFT_BUILD_TYPE} -DLiFFT_ENABLE_CUDA=${LIFFT_CUDA} -DCMAKE_VERBOSE_MAKEFILE=ON ${LiFFT_COVERAGE}
+    - |
+        if [ "${LIFFT_OPENCL}" == "ON" ]; then
+          cmake ../ -DCMAKE_BUILD_TYPE=${LIFFT_BUILD_TYPE} -DLiFFT_ENABLE_CUDA=OFF -DLiFFT_ENABLE_OPENCL=${LIFFT_OPENCL} -DOpenCL_INCLUDE_DIR=$OPENCL_INC -DCLFFT_ROOT=$CLFFT_ROOT -DCMAKE_VERBOSE_MAKEFILE=ON ${LiFFT_COVERAGE}
+        else
+          cmake ../ -DCMAKE_BUILD_TYPE=${LIFFT_BUILD_TYPE} -DLiFFT_ENABLE_CUDA=${LIFFT_CUDA} -DLiFFT_ENABLE_OPENCL=OFF -DCMAKE_VERBOSE_MAKEFILE=ON ${LiFFT_COVERAGE}
+        fi
     - make
     - |
         if [ "${LIFFT_CUDA}" == "OFF" ]; then
