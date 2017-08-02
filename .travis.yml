@@ -15,6 +15,8 @@
 # License along with libLiFFT.  If not, see <www.gnu.org/licenses/>.
 #####################################################################
 
+dist: trusty
+
 language: cpp
 
 os: linux
@@ -62,15 +64,15 @@ matrix:
           env: LIFFT_BUILD_TYPE=Release LIFFT_CUDA=OFF LIFFT_OPENCL=OFF LIFFT_BOOST=1.60.0
         - os: linux
           compiler: clang
-          env: LIFFT_BUILD_TYPE=Release LIFFT_CUDA=OFF LIFFT_OPENCL=OFF LIFFT_CLANG_VER=3.5
+          env: LIFFT_BUILD_TYPE=Release LIFFT_CUDA=OFF LIFFT_OPENCL=OFF LIFFT_CLANG_VER=3.8
           addons:
               apt:
                   sources:
                       - ubuntu-toolchain-r-test
-                      - llvm-toolchain-precise-3.5
+                      - llvm-toolchain-trusty-3.8
                   packages:
                       - g++-4.8
-                      - clang-3.5
+                      - clang-3.8
                       - cmake
                       - libfftw3-dev
         - os: linux
