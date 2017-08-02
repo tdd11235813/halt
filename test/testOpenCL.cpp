@@ -49,7 +49,7 @@ namespace LiFFTTest {
 
     BOOST_AUTO_TEST_CASE(ListDevices)
     {
-        std::cout << listClDevices().str();
+        std::cout << listClDevices();
     }
 
 

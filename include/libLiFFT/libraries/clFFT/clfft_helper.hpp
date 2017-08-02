@@ -139,7 +139,7 @@ namespace clFFT
         return dev_type;
     }
 
-    inline std::stringstream getClDeviceInformations(cl_device_id dev_id)
+    inline std::string getClDeviceInformations(cl_device_id dev_id)
     {
         std::stringstream info;
         std::vector<std::pair<std::string, std::string> > values;
@@ -191,7 +191,7 @@ namespace clFFT
         cl_uint major, minor, patch;
         clfftGetVersion(&major, &minor, &patch);
         info << ",\"clFFT\",\"" << major << "." << minor << "." << patch << "\"";
-        return info;
+        return info.str();
     }
 
     inline void findClDevice(cl_device_type devtype, cl_platform_id* platform,
@@ -225,7 +225,7 @@ namespace clFFT
         }
     }
 
-    inline std::stringstream listClDevices()
+    inline std::string listClDevices()
     {
         cl_uint num_of_platforms = 0;
         if(clGetPlatformIDs(0, NULL, &num_of_platforms) != CL_SUCCESS)
@@ -251,13 +251,13 @@ namespace clFFT
 
             for(cl_uint j = 0; j < num_of_devices; ++j) {
                 info << "\"ID\"," << i << ":" << j << ","
-                     << getClDeviceInformations(devices[j]).str()
+                     << getClDeviceInformations(devices[j])
                      << "\n";
             } // devices
             delete[] devices;
         } // platforms
         delete[] platform_ids;
-        return info;
+        return info.str();
     }
 
     inline void getPlatformAndDeviceByID(cl_platform_id* platform_id,
