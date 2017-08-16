@@ -1,30 +1,29 @@
 #!/bin/bash
 
-# this file is copied from: https://github.com/ddemidov/vexcl/
-# The MIT License
-# Copyright (c) 2012-2017 Denis Demidov dennis.demidov@gmail.com
-# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-# The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 # Original script from https://github.com/gregvw/amd_sdk/
-
-export OPENCL_VENDOR_PATH=${AMDAPPSDKROOT}/etc/OpenCL/vendors
-export LD_LIBRARY_PATH=${AMDAPPSDKROOT}/lib/x86_64:${LD_LIBRARY_PATH}
-export CMAKE_LIBRARY_PATH=${AMDAPPSDKROOT}/lib/x86_64
+# further modifications from: https://github.com/boostorg/compute/blob/master/.travis.yml
+# and: https://github.com/ddemidov/vexcl/
 
 if [ ! -e ${AMDAPPSDKROOT}/bin/x86_64/clinfo ]; then
+
     # Location from which get nonce and file name from
     URL="http://developer.amd.com/amd-accelerated-parallel-processing-app-sdk/"
     URLDOWN="http://developer.amd.com/amd-license-agreement-appsdk/"
+
+    #AMD APP SDK v3.0:
+    if [[ $1 == "300" ]]; then
+        echo "AMD APP SDK v3.0"
+        FORM=`wget -qO - $URL | sed -n '/download-2/,/64-bit/p'`
+    else
+        #AMD APP SDK v2.9.1:
+        echo "AMD APP SDK v2.9.1"
+        FORM=`wget -qO - $URL | sed -n '/download-5/,/64-bit/p'`
+    fi
 
     NONCE1_STRING='name="amd_developer_central_downloads_page_nonce"'
     FILE_STRING='name="f"'
     POSTID_STRING='name="post_id"'
     NONCE2_STRING='name="amd_developer_central_nonce"'
-
-    #For newest FORM=`wget -qO - $URL | sed -n '/download-2/,/64-bit/p'`
-    FORM=`wget -qO - $URL | sed -n '/download-2/,/64-bit/p'`
 
     # Get nonce from form
     NONCE1=`echo $FORM | awk -F ${NONCE1_STRING} '{print $2}'`
@@ -47,14 +46,16 @@ if [ ! -e ${AMDAPPSDKROOT}/bin/x86_64/clinfo ]; then
     NONCE2=`echo $NONCE2 | awk -F'"' '{print $2}'`
     echo $NONCE2
 
-    wget --content-disposition --trust-server-names $URLDOWN --post-data "amd_developer_central_nonce=${NONCE2}&f=${FILE}" -O AMD-SDK.tar.bz2;
+    wget --content-disposition --trust-server-names $URLDOWN --post-data "amd_developer_central_nonce=${NONCE2}&f=${FILE}" -nc -O AMD-SDK.tar.bz2;
 
     # Unpack and install
     tar -xjf AMD-SDK.tar.bz2 || exit 1
-    mkdir -p ${OPENCL_VENDOR_PATH};
+
+    if [[ ${AMDAPPSDK_VERSION} == "300" ]]; then
+        cp ${AMDAPPSDKROOT}/lib/x86_64/libamdocl12cl64.so ${AMDAPPSDKROOT}/lib/x86_64/sdk/libamdocl12cl64.so
+    fi
+
     sh AMD-APP-SDK*.sh --tar -xf -C ${AMDAPPSDKROOT};
-    echo libamdocl64.so > ${OPENCL_VENDOR_PATH}/amdocl64.icd;
+
     chmod +x ${AMDAPPSDKROOT}/bin/x86_64/clinfo;
 fi
-
-${AMDAPPSDKROOT}/bin/x86_64/clinfo

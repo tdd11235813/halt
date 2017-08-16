@@ -28,17 +28,20 @@ branches:
 
 env:
     global:
-        - AMDAPPSDKROOT=${HOME}/AMDAPPSDK
+        - AMDAPPSDKROOT=${TRAVIS_BUILD_DIR}/deps/AMDAPPSDK
         - BOOST_VERSION=1.55.0
         - LIFFT_OPENCL=OFF
         - CUDA_VERSION=8.0.61-1
         - CUDA_VERSION_SHORT=8.0
         - CLANG_VERSION=3.8
+        - LIFFT_CLFFT_VERSION=v2.12.2
+        - AMDAPPSDK_VERSION=291 ## OpenCL 1.2
+#        - AMDAPPSDK_VERSION=300 ## OpenCL 2.0 # does not work on travis
         
 cache:
     directories:
         - ${TRAVIS_BUILD_DIR}/deps/cuda-8.0
-        - ${TRAVIS_BUILD_DIR}/deps/clfft-2.12.2
+        - ${TRAVIS_BUILD_DIR}/deps/clfft-v2.12.2
 #        - ${TRAVIS_BUILD_DIR}/deps/boost-1.60.0 # will fail with gcc4.8.2 + cuda
 #        - ${TRAVIS_BUILD_DIR}/deps/boost-1.56.0 # same
         - ${TRAVIS_BUILD_DIR}/deps/boost-1.55.0
@@ -52,7 +55,6 @@ addons:
     apt:
         sources:
             - ubuntu-toolchain-r-test
-            - llvm-toolchain-trusty-3.8
         packages:
             - g++-4.8
             - clang-3.8
@@ -83,7 +85,7 @@ matrix:
         # liFFT with OpenCL / clFFT # RelWithDebInfo
         - os: linux
           compiler: gcc
-          env: LIFFT_BUILD_TYPE=RelWithDebInfo LIFFT_CUDA=OFF LIFFT_OPENCL=ON LIFFT_CLFFT_VER=2.12.2
+          env: LIFFT_BUILD_TYPE=RelWithDebInfo LIFFT_CUDA=OFF LIFFT_OPENCL=ON
           sudo: required
   
 before_install:
@@ -100,7 +102,19 @@ before_install:
         fi
     - |
         if [ "${LIFFT_OPENCL}" == "ON" ]; then
-            bash .travis/install_amd_sdk.sh
+            bash .travis/install_amd_sdk.sh ${AMDAPPSDK_VERSION}
+            if [[ ${AMDAPPSDK_VERSION} == "300" ]]; then
+              export LD_LIBRARY_PATH=${AMDAPPSDKROOT}/lib/x86_64/sdk:${LD_LIBRARY_PATH}
+              export CMAKE_LIBRARY_PATH=${AMDAPPSDKROOT}/lib/x86_64/sdk:${CMAKE_LIBRARY_PATH}
+            else # 291
+              export LD_LIBRARY_PATH=${AMDAPPSDKROOT}/lib/x86_64:${LD_LIBRARY_PATH}
+              export CMAKE_LIBRARY_PATH=${AMDAPPSDKROOT}/lib/x86_64:${CMAKE_LIBRARY_PATH}
+            fi
+            export OPENCL_VENDOR_PATH=${AMDAPPSDKROOT}/etc/OpenCL/vendors
+            mkdir -p ${OPENCL_VENDOR_PATH};
+            echo libamdocl64.so > ${OPENCL_VENDOR_PATH}/amdocl64.icd;
+
+            ${AMDAPPSDKROOT}/bin/x86_64/clinfo
         fi
 
 install:
@@ -137,18 +151,16 @@ install:
             export LD_LIBRARY_PATH=${CUDA_ROOT}/lib64:${LD_LIBRARY_PATH}
             export PATH=${CUDA_ROOT}/bin:${PATH}
         fi
+        
     # clfft
     - |
         if [ "${LIFFT_OPENCL}" == "ON" ]; then
-            export OPENCL_VENDOR_PATH=${AMDAPPSDKROOT}/etc/OpenCL/vendors
-            export LD_LIBRARY_PATH=${AMDAPPSDKROOT}/lib/x86_64:${LD_LIBRARY_PATH}
-            export CLFFT_ROOT=${TRAVIS_BUILD_DIR}/deps/clfft-${LIFFT_CLFFT_VER}
-            export CMAKE_LIBRARY_PATH=${AMDAPPSDKROOT}/lib/x86_64
-            export CMAKE_PREFIX_PATH=${AMDAPPSDKROOT}/lib/x86_64:${CLFFT_ROOT}:${CMAKE_PREFIX_PATH}
-            CLFFT_SRC=${TRAVIS_BUILD_DIR}/sources/clfft-${LIFFT_CLFFT_VER}
+            export CLFFT_ROOT=${TRAVIS_BUILD_DIR}/deps/clfft-${LIFFT_CLFFT_VERSION}
+            export CMAKE_PREFIX_PATH=${CLFFT_ROOT}:${CMAKE_PREFIX_PATH}
+            CLFFT_SRC=${TRAVIS_BUILD_DIR}/sources/clfft-${LIFFT_CLFFT_VERSION}
             if [[ -z "$(ls -A ${CLFFT_ROOT})" ]]; then
                 git clone https://github.com/clMathLibraries/clFFT.git ${CLFFT_SRC}
-                (cd ${CLFFT_SRC}; git checkout ${LIFFT_CLFFT_VER})
+                (cd ${CLFFT_SRC}; git checkout ${LIFFT_CLFFT_VERSION})
                 (cd ${CLFFT_SRC}/src; cmake -DBUILD64=ON -DBUILD_CALLBACK_CLIENT=OFF -DBUILD_CLIENT=OFF -DBUILD_EXAMPLES=OFF -DBUILD_LOADLIBRARIES=ON -DBUILD_RUNTIME=ON -DBUILD_SHARED_LIBS=ON -DBUILD_TEST=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${CLFFT_ROOT} -DSUFFIX_LIB=64 && make && make install) || exit 1
             else
                 echo "Using cached clfft version at $CLFFT_ROOT"
