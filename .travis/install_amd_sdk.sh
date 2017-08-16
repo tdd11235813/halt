@@ -15,7 +15,7 @@ export CMAKE_LIBRARY_PATH=${AMDAPPSDKROOT}/lib/x86_64
 
 if [ ! -e ${AMDAPPSDKROOT}/bin/x86_64/clinfo ]; then
     # Location from which get nonce and file name from
-    URL="http://developer.amd.com/tools-and-sdks/opencl-zone/opencl-tools-sdks/amd-accelerated-parallel-processing-app-sdk/"
+    URL="http://developer.amd.com/amd-accelerated-parallel-processing-app-sdk/"
     URLDOWN="http://developer.amd.com/amd-license-agreement-appsdk/"
 
     NONCE1_STRING='name="amd_developer_central_downloads_page_nonce"'
@@ -24,7 +24,7 @@ if [ ! -e ${AMDAPPSDKROOT}/bin/x86_64/clinfo ]; then
     NONCE2_STRING='name="amd_developer_central_nonce"'
 
     #For newest FORM=`wget -qO - $URL | sed -n '/download-2/,/64-bit/p'`
-    FORM=`wget -qO - $URL | sed -n '/download-5/,/64-bit/p'`
+    FORM=`wget -qO - $URL | sed -n '/download-2/,/64-bit/p'`
 
     # Get nonce from form
     NONCE1=`echo $FORM | awk -F ${NONCE1_STRING} '{print $2}'`
@@ -50,7 +50,7 @@ if [ ! -e ${AMDAPPSDKROOT}/bin/x86_64/clinfo ]; then
     wget --content-disposition --trust-server-names $URLDOWN --post-data "amd_developer_central_nonce=${NONCE2}&f=${FILE}" -O AMD-SDK.tar.bz2;
 
     # Unpack and install
-    tar -xjf AMD-SDK.tar.bz2;
+    tar -xjf AMD-SDK.tar.bz2 || exit 1
     mkdir -p ${OPENCL_VENDOR_PATH};
     sh AMD-APP-SDK*.sh --tar -xf -C ${AMDAPPSDKROOT};
     echo libamdocl64.so > ${OPENCL_VENDOR_PATH}/amdocl64.icd;
