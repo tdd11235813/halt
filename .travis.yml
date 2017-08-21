@@ -91,17 +91,22 @@ matrix:
 before_install:
     - |
         if [ "${LIFFT_CUDA}" == "ON" ]; then
+            set -e
             CUDA_CACHE_PATH=${TRAVIS_BUILD_DIR}/deps/cuda-${CUDA_VERSION_SHORT}
             if [[ -z "$(ls -A ${CUDA_CACHE_PATH})" ]]; then
-              wget https://developer.nvidia.com/compute/cuda/8.0/Prod2/local_installers/cuda-repo-ubuntu1404-8-0-local-ga2_${CUDA_VERSION}_amd64-deb -q -O "${CUDA_CACHE_PATH}/cuda.deb";
+              travis_retry wget https://developer.nvidia.com/compute/cuda/8.0/Prod2/local_installers/cuda-repo-ubuntu1404-8-0-local-ga2_${CUDA_VERSION}_amd64-deb -q -O "${CUDA_CACHE_PATH}/cuda.deb";
             else
               echo "Using cached cuda.deb in $CUDA_CACHE_PATH"
             fi
-            sudo dpkg -i ${CUDA_CACHE_PATH}/cuda.deb
-            sudo apt-get update -qq
+            travis_retry sudo dpkg -i ${CUDA_CACHE_PATH}/cuda.deb
+            travis_retry sudo apt-get update -qq
+            CUDA_APT=${CUDA_VERSION_SHORT/./-}
+            travis_retry sudo apt-get install -qy cuda-core-${CUDA_APT} cuda-cudart-dev-${CUDA_APT} cuda-cufft-${CUDA_APT} cuda-cufft-dev-${CUDA_APT}
+            set +e
         fi
     - |
         if [ "${LIFFT_OPENCL}" == "ON" ]; then
+            set -e
             bash .travis/install_amd_sdk.sh ${AMDAPPSDK_VERSION}
             if [[ ${AMDAPPSDK_VERSION} == "300" ]]; then
               export LD_LIBRARY_PATH=${AMDAPPSDKROOT}/lib/x86_64/sdk:${LD_LIBRARY_PATH}
@@ -115,6 +120,7 @@ before_install:
             echo libamdocl64.so > ${OPENCL_VENDOR_PATH}/amdocl64.icd;
 
             ${AMDAPPSDKROOT}/bin/x86_64/clinfo
+            set +e
         fi
 
 install:
@@ -125,19 +131,21 @@ install:
         export BOOST_ROOT="${TRAVIS_BUILD_DIR}/deps/boost-${BOOST_VERSION}"
         export CMAKE_PREFIX_PATH=${BOOST_ROOT}:${CMAKE_PREFIX_PATH}
         if [[ -z "$(ls -A ${BOOST_ROOT})" ]]; then
+            set -e
             BOOST_SRC=${TRAVIS_BUILD_DIR}/sources/boost
             mkdir -p ${BOOST_SRC}
-            wget http://sourceforge.net/projects/boost/files/boost/${BOOST_VERSION}/boost_${BOOST_VERSION//\./_}.tar.bz2 -nc -O ${BOOST_SRC}/../boost.tar.bz2
+            travis_retry wget http://sourceforge.net/projects/boost/files/boost/${BOOST_VERSION}/boost_${BOOST_VERSION//\./_}.tar.bz2 -nc -O ${BOOST_SRC}/../boost.tar.bz2
             (cd ${BOOST_SRC}/../; tar jxf boost.tar.bz2 --strip-components=1 -C ${BOOST_SRC})
-            (cd ${BOOST_SRC}; ./bootstrap.sh --with-libraries=program_options,filesystem,system,test) || exit 1
-            (cd ${BOOST_SRC}; ./b2 --prefix=$BOOST_ROOT -d0 install) || exit 1
+            (cd ${BOOST_SRC}; ./bootstrap.sh --with-libraries=program_options,filesystem,system,test)
+            (cd ${BOOST_SRC}; ./b2 --prefix=$BOOST_ROOT -d0 install)
+            set +e
         else
             echo "Using cached boost version at $BOOST_ROOT"
         fi
     - |
         export LiFFT_COVERAGE=""
         if [ "${LIFFT_CUDA}" == "OFF" ]; then
-            pip install --user numpy matplotlib
+            travis_retry pip install --user numpy matplotlib
             # GCov for clang does not work for this folder structure
             if [ "${LIFFT_BUILD_TYPE}" == "Debug" ] && [[ "$CXX" == "g++"* ]]; then
                 export LiFFT_COVERAGE="-DLiFFT_ENABLE_COVERAGE=ON"
@@ -146,7 +154,6 @@ install:
     # CUDA
     - |
         if [ "${LIFFT_CUDA}" == "ON" ]; then
-            sudo apt-get install -y cuda ocl-icd-libopencl1
             export CUDA_ROOT=/usr/local/cuda-${CUDA_VERSION_SHORT}
             export LD_LIBRARY_PATH=${CUDA_ROOT}/lib64:${LD_LIBRARY_PATH}
             export PATH=${CUDA_ROOT}/bin:${PATH}
@@ -159,9 +166,11 @@ install:
             export CMAKE_PREFIX_PATH=${CLFFT_ROOT}:${CMAKE_PREFIX_PATH}
             CLFFT_SRC=${TRAVIS_BUILD_DIR}/sources/clfft-${LIFFT_CLFFT_VERSION}
             if [[ -z "$(ls -A ${CLFFT_ROOT})" ]]; then
-                git clone https://github.com/clMathLibraries/clFFT.git ${CLFFT_SRC}
+                set -e
+                travis_retry git clone https://github.com/clMathLibraries/clFFT.git ${CLFFT_SRC}
                 (cd ${CLFFT_SRC}; git checkout ${LIFFT_CLFFT_VERSION})
-                (cd ${CLFFT_SRC}/src; cmake -DBUILD64=ON -DBUILD_CALLBACK_CLIENT=OFF -DBUILD_CLIENT=OFF -DBUILD_EXAMPLES=OFF -DBUILD_LOADLIBRARIES=ON -DBUILD_RUNTIME=ON -DBUILD_SHARED_LIBS=ON -DBUILD_TEST=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${CLFFT_ROOT} -DSUFFIX_LIB=64 && make && make install) || exit 1
+                (cd ${CLFFT_SRC}/src; cmake -DBUILD64=ON -DBUILD_CALLBACK_CLIENT=OFF -DBUILD_CLIENT=OFF -DBUILD_EXAMPLES=OFF -DBUILD_LOADLIBRARIES=ON -DBUILD_RUNTIME=ON -DBUILD_SHARED_LIBS=ON -DBUILD_TEST=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${CLFFT_ROOT} -DSUFFIX_LIB=64 && make && make install)
+                set +e
             else
                 echo "Using cached clfft version at $CLFFT_ROOT"
             fi

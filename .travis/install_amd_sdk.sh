@@ -48,6 +48,10 @@ if [ ! -e ${AMDAPPSDKROOT}/bin/x86_64/clinfo ]; then
 
     wget --content-disposition --trust-server-names $URLDOWN --post-data "amd_developer_central_nonce=${NONCE2}&f=${FILE}" -nc -O AMD-SDK.tar.bz2;
 
+    if [ $? != 0 ]; then
+        exit 1;
+    fi
+
     # Unpack and install
     tar -xjf AMD-SDK.tar.bz2 || exit 1
 
@@ -57,5 +61,8 @@ if [ ! -e ${AMDAPPSDKROOT}/bin/x86_64/clinfo ]; then
 
     sh AMD-APP-SDK*.sh --tar -xf -C ${AMDAPPSDKROOT};
 
+    if [ $? != 0 ]; then
+        exit 1;
+    fi
     chmod +x ${AMDAPPSDKROOT}/bin/x86_64/clinfo;
 fi
