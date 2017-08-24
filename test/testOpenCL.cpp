@@ -28,10 +28,29 @@
 #include <boost/mpl/list.hpp>
 #include <boost/mpl/int.hpp>
 
+#include <chrono>
+
 using LiFFT::generateData;
 using namespace LiFFT::generators;
 
 using ClFFTContextAPI= LiFFT::libraries::clFFT::ClFFTContextAPI;
+
+struct TimerCPU {
+  typedef std::chrono::high_resolution_clock clock;
+
+  clock::time_point start;
+  double time = 0.0;
+
+  void startTimer() {
+    start = clock::now();
+  }
+
+  double stopTimer() {
+    auto diff = clock::now() - start;
+    return (time = std::chrono::duration<double, std::milli> (diff).count());
+  }
+};
+
 
 namespace LiFFTTest {
 
@@ -360,7 +379,60 @@ namespace LiFFTTest {
 
     BOOST_AUTO_TEST_CASE(TestClFFTR2CInplaceTwoArch)
     {
+        TimerCPU timer;
         using Context = LiFFT::libraries::clFFT::policies::ContextLocal<>;
+        Context context_cpu(ContextDevice::CPU);
+        Context context_gpu(ContextDevice::GPU);
+
+        std::cout << "1: " << getClDeviceInformations(context_cpu.device()) << "\n";
+        std::cout << "2: " << getClDeviceInformations(context_gpu.device()) << "\n";
+
+        TestExtents ext = TestExtents::all(testSize);
+        ext[testNumDims - 1] = (ext[testNumDims - 1] / 2 + 1) * 2;
+        using namespace LiFFT::types;
+        auto aperture_cpu = makeView(RealContainer(ext),
+                                     makeRange(Origin(), TestExtents::all(testSize)));
+        auto aperture_gpu = makeView(RealContainer(ext),
+                                     makeRange(Origin(), TestExtents::all(testSize)));
+
+        using FFT_Type = LiFFT::FFT_2D_R2C<TestPrecision, true>;
+        auto input_cpu = FFT_Type::wrapInput(aperture_cpu);
+        auto output_cpu = FFT_Type::createNewOutput(input_cpu);
+        auto input_gpu = FFT_Type::wrapInput(aperture_gpu);
+        auto output_gpu = FFT_Type::createNewOutput(input_gpu);
+
+        generateData(input_cpu, Rect<TestPrecision>(20, testSize / 2));
+        generateData(input_gpu, Rect<TestPrecision>(20, testSize / 2));
+        LiFFT::policies::copy(aperture_cpu, baseR2CInput);
+
+        auto fft_cpu = LiFFT::makeFFTInQueue<ClFFTContextAPI>(input_cpu, context_cpu);
+        auto fft_gpu = LiFFT::makeFFTInQueue<ClFFTContextAPI>(input_gpu, context_gpu);
+
+        { // warmup
+          fft_cpu(input_cpu, context_cpu);
+          fft_gpu(input_gpu, context_gpu);
+        }
+
+        { // rerun on the data and measure time
+          generateData(input_cpu, Rect<TestPrecision>(20, testSize / 2));
+          generateData(input_gpu, Rect<TestPrecision>(20, testSize / 2));
+
+          timer.startTimer();
+          fft_cpu(input_cpu, context_cpu);
+          fft_gpu(input_gpu, context_gpu);
+          double ms = timer.stopTimer();
+          std::cout << "TwoArch Sync: Time = " << ms << "\n";
+        }
+
+        execBaseR2C();
+        checkResult(baseR2COutput, output_cpu, "R2C inPlace", CmpError(1e-3, 5e-5));
+        checkResult(baseR2COutput, output_gpu, "R2C inPlace", CmpError(1e-3, 5e-5));
+    }
+
+    BOOST_AUTO_TEST_CASE(TestClFFTR2CInplaceTwoArchAsync)
+    {
+        TimerCPU timer;
+        using Context = LiFFT::libraries::clFFT::policies::ContextLocal<true>;
         Context context_cpu(ContextDevice::CPU);
         Context context_gpu(ContextDevice::GPU);
 
@@ -385,8 +457,26 @@ namespace LiFFTTest {
         auto fft_cpu = LiFFT::makeFFTInQueue<ClFFTContextAPI>(input_cpu, context_cpu);
         auto fft_gpu = LiFFT::makeFFTInQueue<ClFFTContextAPI>(input_gpu, context_gpu);
 
-        fft_cpu(input_cpu, context_cpu);
-        fft_gpu(input_gpu, context_gpu);
+        { // warmup
+          fft_cpu(input_cpu, context_cpu);
+          fft_gpu(input_gpu, context_gpu);
+          context_cpu.sync_queue();
+          context_gpu.sync_queue();
+        }
+
+        { // rerun on the data and measure time
+          generateData(input_cpu, Rect<TestPrecision>(20, testSize / 2));
+          generateData(input_gpu, Rect<TestPrecision>(20, testSize / 2));
+
+          timer.startTimer();
+          fft_cpu(input_cpu, context_cpu);
+          fft_gpu(input_gpu, context_gpu);
+
+          context_gpu.sync_queue(); // if not present, then test fails as copies do not finish in time
+          context_cpu.sync_queue(); // if not present, then test fails as copies do not finish in time
+          double ms = timer.stopTimer();
+          std::cout << "TwoArch ASync: Time = " << ms << "\n";
+        }
 
         execBaseR2C();
         checkResult(baseR2COutput, output_cpu, "R2C inPlace", CmpError(1e-3, 5e-5));
