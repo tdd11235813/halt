@@ -25,10 +25,10 @@ namespace LiFFT {
 namespace traits {
 
     /**
-     * This checks if a type T has a member `isComplex`.
+     * This checks if a type T has a member `type`.
      *
      * liFFTs data wrapper want to know if T is integral type or not to derive
-     * if the data lives in complex or in real space.
+     * whether the data lives in complex or in real space.
      * A non-integral type must be liFFT compatible, i.e., it must have
      * a ::type and a ::isComplex member.
      * By the integration of OpenCL as a possible backend there also exist
