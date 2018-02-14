@@ -36,7 +36,7 @@ namespace traits {
      * The data type `cl_mem` is non-integral, but must be treated
      * like an integral one by liFFT.
      */
-    template<typename T, typename = int>
+    template<typename T, typename = void>
     struct has_type_member : std::false_type { };
     template<typename T>
     struct has_type_member<T, void_t< typename T::type >> : std::true_type { };
