@@ -24,23 +24,22 @@
 namespace LiFFT {
 namespace traits {
 
-    // Forward declaration
-    template< typename T >
-    struct IntegralType;
-
-
-
-  // SFINAE test if T has type member
-  template <typename T>
-  class has_type
-  {
-    typedef char one;
-    typedef long two;
-    template <typename C> static one test( decltype(&C::isComplex) ) ;
-    template <typename C> static two test(...);
-  public:
-    enum { value = sizeof(test<T>(0)) == sizeof(char) };
-  };
+    /**
+     * This checks if a type T has a member `isComplex`.
+     *
+     * liFFTs data wrapper want to know if T is integral type or not to derive
+     * if the data lives in complex or in real space.
+     * A non-integral type must be liFFT compatible, i.e., it must have
+     * a ::type and a ::isComplex member.
+     * By the integration of OpenCL as a possible backend there also exist
+     * a wrapper for such things on the OpenCL level.
+     * The data type `cl_mem` is non-integral, but must be treated
+     * like an integral one by liFFT.
+     */
+    template<typename T, typename = int>
+    struct has_type_member : std::false_type { };
+    template<typename T>
+    struct has_type_member<T, void_t< typename T::type >> : std::true_type { };
 
     /**
      * Specialize this to return the integral type of a given memory representation
@@ -50,15 +49,17 @@ namespace traits {
 
     template< typename T >
     struct IntegralTypeImpl<
-            T,
-      std::enable_if_t<std::is_integral<T>::value || std::is_floating_point<T>::value || has_type<T>::value==false>
-//            std::enable_if_t<
-//                (std::is_integral<T>::value || std::is_floating_point<T>::value)
-//            >
+        T,
+        std::enable_if_t<std::is_integral<T>::value || std::is_floating_point<T>::value || has_type_member<T>::value==false>
         >
     {
         using type = T;
     };
+
+
+    // Forward declaration
+    template< typename T >
+    struct IntegralType;
 
     /**
      * Specialization for structs with a type-member
