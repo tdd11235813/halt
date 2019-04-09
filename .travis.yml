@@ -10,21 +10,13 @@ language: cpp
 
 os: linux
 
+dist: xenial
+
 sudo: false
-
-compiler:
-    - gcc
-    - clang
-
-branches:
-    only:
-        - master
-        - dev
 
 cache:
     directories:
-        - $HOME/dependencies
-        - $HOME/.cache/pip
+        - ${TRAVIS_BUILD_DIR}/.cache
         - $HOME/virtualenv/python2.7/lib/python2.7/site-packages
         - $HOME/.local/lib/python2.7/site-packages
 
@@ -32,96 +24,98 @@ addons:
     apt:
         sources:
             - ubuntu-toolchain-r-test
-            - llvm-toolchain-precise-3.8
         packages:
-            - g++-4.8
-            - clang-3.8
+            - gcc-5
+            - clang-4.0
             - cmake
             - libfftw3-dev
 
 env:
     global:
-        - LIFFT_BOOST=1.55.0
-    matrix:
-        - LIFFT_BUILD_TYPE=Debug LIFFT_CUDA=OFF LIFFT_CLANG_VER=3.8
-        - LIFFT_BUILD_TYPE=Release LIFFT_CUDA=OFF LIFFT_CLANG_VER=3.8
+      - LIFFT_BOOST_VER: 1.65.1
+      - LIFFT_CLANG_VER: 4.0
+      - LIFFT_CUDA_VER: 8.0.61-1
+      - LIFFT_CUDA_VER_SHORT: 8.0
+      - CUDA_CACHE_DIR: ${TRAVIS_BUILD_DIR}/.cache/cuda
+      - BOOST_CACHE_DIR: ${TRAVIS_BUILD_DIR}/.cache/boost
 
 matrix:
     include:
-        - os: linux
-          compiler: gcc
-          env: LIFFT_BUILD_TYPE=Release LIFFT_CUDA=OFF LIFFT_BOOST=1.60.0
-        - os: linux
+        - name: clang-4.0 FFTW3 Release
           compiler: clang
-          env: LIFFT_BUILD_TYPE=Release LIFFT_CUDA=OFF LIFFT_CLANG_VER=3.5
-          addons:
-              apt:
-                  sources:
-                      - ubuntu-toolchain-r-test
-                      - llvm-toolchain-precise-3.5
-                  packages:
-                      - g++-4.8
-                      - clang-3.5
-                      - cmake
-                      - libfftw3-dev
-        - os: linux
+          env: LIFFT_BUILD_TYPE=Release LIFFT_CUDA=OFF
+        - name: gcc-5 FFTW3 Release
           compiler: gcc
-          env: LIFFT_BUILD_TYPE=Debug LIFFT_CUDA=ON LIFFT_CUDA_VER=7.0-28
-          sudo: required
-        - os: linux
+          env: LIFFT_BUILD_TYPE=Release LIFFT_CUDA=OFF
+        - name: gcc-5 FFTW3 Debug
           compiler: gcc
-          env: LIFFT_BUILD_TYPE=Release LIFFT_CUDA=ON LIFFT_CUDA_VER=7.0-28
+          env: LIFFT_BUILD_TYPE=Debug LIFFT_CUDA=OFF
+        - name: gcc-5 CUDA-8.0.61 Release
+          compiler: gcc
+          env: LIFFT_BUILD_TYPE=Release LIFFT_CUDA=ON
           sudo: required
-
-before_install:
-    - |
-        if [ "${LIFFT_CUDA}" == "ON" ]; then
-            wget http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1204/x86_64/cuda-repo-ubuntu1204_${LIFFT_CUDA_VER}_amd64.deb
-            sudo dpkg -i cuda-repo-ubuntu1204_${LIFFT_CUDA_VER}_amd64.deb
-            sudo apt-get update -qq
-        fi
+        - name: gcc-5 CUDA-8.0.61 Debug
+          compiler: gcc
+          env: LIFFT_BUILD_TYPE=Debug LIFFT_CUDA=ON
+          sudo: required
 
 install:
-    - if [ "${CXX}" == "g++" ]; then export CXX=g++-4.8; export CC=${CXX/g++/gcc}; export GCOV=${CXX/g++/gcov}; fi
+    - if [ "${CXX}" == "g++" ]; then export CXX="g++-5"; export CC=${CXX/g++/gcc}; export GCOV=${CXX/g++/gcov}; fi
     - if [ "${CXX}" == "clang++" ]; then export CXX=clang++-${LIFFT_CLANG_VER}; export CC=clang-${LIFFT_CLANG_VER}; export GCOV="gcov"; fi
     # CUDA
     - |
-        if [ "${LIFFT_CUDA}" == "ON" ]; then
-            CUDA_APT_VER=${LIFFT_CUDA_VER%-*}
-            CUDA_APT_VER=${CUDA_APT_VER/./-}
-            CUDA_PACKAGES="cuda-drivers cuda-core-${CUDA_APT_VER} cuda-cudart-dev-${CUDA_APT_VER} cuda-cufft-dev-${CUDA_APT_VER}"
-            echo "Installing ${CUDA_PACKAGES}"
-            sudo apt-get install -y ${CUDA_PACKAGES}
-            export CUDA_HOME=/usr/local/cuda-${LIFFT_CUDA_VER%%-*}
-            export LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
-            export PATH=${CUDA_HOME}/bin:${PATH}
+      if [[ "${LIFFT_CUDA}" == "ON" ]]; then
+        mkdir -p ${CUDA_CACHE_DIR};
+        if [[ -z "$(ls -A ${CUDA_CACHE_DIR})" ]]; then
+          travis_retry wget https://developer.nvidia.com/compute/cuda/8.0/Prod2/local_installers/cuda-repo-ubuntu1404-8-0-local-ga2_${LIFFT_CUDA_VER}_amd64-deb -q -O "${CUDA_CACHE_DIR}/cuda.deb";
+        else
+          echo "Using cached cuda.deb in $CUDA_CACHE_DIR";
         fi
-    # Boost
-    - export LIFFT_BOOST_FOLDER="boost_${LIFFT_BOOST//./_}"
-    - export BOOST_ROOT="$HOME/dependencies/${LIFFT_BOOST_FOLDER}"
+        LIFFT_CUDA_VER_APT=${LIFFT_CUDA_VER_SHORT//./-}
+        travis_retry sudo dpkg -i ${CUDA_CACHE_DIR}/cuda.deb &&
+        travis_retry sudo apt-get update -qq &&
+        travis_retry sudo apt-get install -qy cuda-core-${LIFFT_CUDA_VER_APT} cuda-cudart-dev-${LIFFT_CUDA_VER_APT} cuda-cufft-${LIFFT_CUDA_VER_APT} cuda-cufft-dev-${LIFFT_CUDA_VER_APT};
+      fi
+    # CUDA
     - |
-        if [ ! -d "$BOOST_ROOT" ]; then
-            wget http://sourceforge.net/projects/boost/files/boost/${LIFFT_BOOST}/${LIFFT_BOOST_FOLDER}.tar.bz2 --output-document=boost.tar.bz2
-            mkdir -p $BOOST_ROOT
-            tar jxf boost.tar.bz2 --strip-components=1 -C $BOOST_ROOT
-            (cd $BOOST_ROOT; ./bootstrap.sh --with-libraries=program_options,filesystem,system,test)
-            (cd $BOOST_ROOT; ./b2 --prefix=$BOOST_ROOT -d0 install)
-        else echo "Using cached boost version at $BOOST_ROOT"
-        fi
+      export CUDA_ROOT=/usr/local/cuda-${LIFFT_CUDA_VER_SHORT}
+      export LD_LIBRARY_PATH=${CUDA_ROOT}/lib64:${LD_LIBRARY_PATH}
+      export PATH=${CUDA_ROOT}/bin:${PATH}
+    # Boost
+    - export BOOST_DIR_NAME="boost_${LIFFT_BOOST_VER//./_}"
+    - export BOOST_ROOT="$BOOST_CACHE_DIR/installed/$BOOST_DIR_NAME"
+    - export CMAKE_PREFIX_PATH=$BOOST_ROOT:$CMAKE_PREFIX_PATH
+    - |
+      travis_fold start "Boost"
+      travis_time_start
+      if [[ -z "$(ls -A ${BOOST_CACHE_DIR})" ]]; then
+        mkdir -p $BOOST_CACHE_DIR && mkdir -p $BOOST_ROOT &&
+        cd $BOOST_CACHE_DIR &&
+        travis_retry wget --no-check-certificate -O boost.tar.bz2 http://sourceforge.net/projects/boost/files/boost/${LIFFT_BOOST_VER}/${BOOST_DIR_NAME}.tar.bz2/download &&
+        tar -xjf boost.tar.bz2 &&
+        cd ${BOOST_DIR_NAME} &&
+        ./bootstrap.sh --with-libraries=program_options,filesystem,system,test --prefix=$BOOST_ROOT &&
+        ./b2 -j2 &&
+        ./b2 install &&
+        cd $TRAVIS_BUILD_DIR;
+      fi
+      travis_time_finish
+      travis_fold end "Boost"
     - |
         export LiFFT_COVERAGE=""
         if [ "${LIFFT_CUDA}" == "OFF" ]; then
-            pip install --user numpy matplotlib
-            # GCov for clang does not work for this folder structure
-            if [ "${LIFFT_BUILD_TYPE}" == "Debug" ] && [[ "$CXX" == "g++"* ]]; then
-                export LiFFT_COVERAGE="-DLiFFT_ENABLE_COVERAGE=ON"
-            fi
+          pip install --user numpy matplotlib
+          # GCov for clang does not work for this folder structure
+          if [ "${LIFFT_BUILD_TYPE}" == "Debug" ] && [[ "$CXX" == "g++"* ]]; then
+            export LiFFT_COVERAGE="-DLiFFT_ENABLE_COVERAGE=ON";
+          fi
         fi
-    # Versions
+    - echo "$CXX $CC"
+    - $CC --version
     - $CXX --version
     - if [ "${LIFFT_CUDA}" == "ON" ]; then nvcc --version; fi
-    - cmake --version
     - $GCOV --version
+    - cmake --version
 
 script:
     - mkdir build && cd build
@@ -129,12 +123,11 @@ script:
     - cmake ../ -DCMAKE_BUILD_TYPE=${LIFFT_BUILD_TYPE} -DLiFFT_ENABLE_CUDA=${LIFFT_CUDA} -DCMAKE_VERBOSE_MAKEFILE=ON ${LiFFT_COVERAGE}
     - make
     - |
-        if [ "${LIFFT_CUDA}" == "OFF" ]; then
-            export CTEST_OUTPUT_ON_FAILURE=1
-            make test
-        fi
+      if [ "${LIFFT_CUDA}" == "OFF" ]; then
+          export CTEST_OUTPUT_ON_FAILURE=1
+          make test
+      fi
     - set +e
 
 after_success:
   - if [ "${LIFFT_BUILD_TYPE}" == "Debug" ]; then bash <(curl -s https://codecov.io/bash) -x "${GCOV}"; fi
-
