@@ -1,20 +1,12 @@
 #!/usr/bin/env python
-""" This file is part of libLiFFT.
+""" This file is part of liFFT.
 
- libLiFFT is free software: you can redistribute it and/or modify
- it under the terms of the GNU Lesser General Public License as
- published by the Free Software Foundation, either version 3 of the
- License, or (at your option) any later version.
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
- libLiFFT is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Lesser General Public License for more details.
-
- You should have received a copy of the GNU Lesser General Public
- License along with libLiFFT. If not, see <www.gnu.org/licenses/>.
 """
- 
+
 from matplotlib import use as mplUse
 mplUse('Agg')
 from matplotlib import cm
@@ -33,7 +25,7 @@ def drawGraphic(data, figure, xLabel = None, yLabel = None, title = None, logPlo
         norm = LogNorm()
     else:
         norm = None
-        
+
     subplot = figure.add_subplot(111)
     pic = subplot.imshow(data, norm=norm, aspect="auto", cmap=cm.spectral, extent=extent)
 
@@ -50,7 +42,7 @@ def drawGraphic(data, figure, xLabel = None, yLabel = None, title = None, logPlo
     CB = figure.colorbar(pic)
     for t in CB.ax.get_yticklabels():
         t.set_fontsize(20)
-            
+
 def writeSpectral(data, outFp):
   Nx = len(data[0])
   Ny = len(data)
@@ -68,7 +60,7 @@ def writeSpectral(data, outFp):
                (-kx_max, kx_max, -ky_max, ky_max))
   FIG.savefig(outFp, format='pdf')
   plt.close(FIG)
-  
+
 def writeNormal(data, outFp):
   Nx = len(data[0])
   Ny = len(data)
@@ -90,17 +82,17 @@ def loadAndWriteData(inFp, outFp, isSpectral):
   else:
     writeNormal(data, outFp)
 
-  
+
 def main(name, argv):
   parser = argparse.ArgumentParser(description="Create PDF image from text input", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument('-i', '--ifile', required=True, help="Path to inputfile")
   parser.add_argument('-o', '--ofile', default="output.pdf", help="Path to outputfile")
   parser.add_argument('-s', '--isSpectral', action="store_true", help="Use spectral scaled output")
   options = parser.parse_args(argv)
-  
+
   print('Loading "' + options.ifile + '" to "' + options.ofile + '"')
   loadAndWriteData(options.ifile, options.ofile, options.isSpectral)
-       
+
 if __name__ == "__main__":
    main(sys.argv[0], sys.argv[1:])
 

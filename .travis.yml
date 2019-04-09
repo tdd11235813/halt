@@ -1,18 +1,9 @@
 #####################################################################
-# This file is part of libLiFFT.
+# This file is part of liFFT.
 #
-# libLiFFT is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Lesser General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# libLiFFT is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Lesser General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public
-# License along with libLiFFT.  If not, see <www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
 #####################################################################
 
 language: cpp
@@ -24,12 +15,12 @@ sudo: false
 compiler:
     - gcc
     - clang
-    
+
 branches:
     only:
         - master
         - dev
-    
+
 cache:
     directories:
         - $HOME/dependencies
@@ -81,7 +72,7 @@ matrix:
           compiler: gcc
           env: LIFFT_BUILD_TYPE=Release LIFFT_CUDA=ON LIFFT_CUDA_VER=7.0-28
           sudo: required
-  
+
 before_install:
     - |
         if [ "${LIFFT_CUDA}" == "ON" ]; then
@@ -143,7 +134,7 @@ script:
             make test
         fi
     - set +e
-    
+
 after_success:
   - if [ "${LIFFT_BUILD_TYPE}" == "Debug" ]; then bash <(curl -s https://codecov.io/bash) -x "${GCOV}"; fi
 
