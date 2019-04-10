@@ -24,8 +24,8 @@ macro(CheckAndAddFlag flag)
 	endif()
 endmacro()
 
-project(libLiFFT)
-cmake_minimum_required(VERSION 2.8.0)
+project(liFFT)
+cmake_minimum_required(VERSION 3.1.0)
 
 set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} $ENV{HOME}/Software/tiff $ENV{HOME}/Software/FFTW)
 if(NOT CMAKE_BUILD_TYPE)
@@ -76,12 +76,10 @@ set(LIBS ${LIBS} ${Boost_LIBRARIES})
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 # Use the CMake variable available at 3.1 and up
-if(${CMAKE_VERSION} VERSION_LESS 3.1)
-    add_definitions(-std=c++11)
-else()
-    set(CMAKE_CXX_STANDARD 11)
-    set(CMAKE_CXX_STANDARD_REQUIRED ON)
-endif()
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
+
 # Required by CUDA w/o CUDA_PROPAGATE_HOST_FLAGS=ON
 list(APPEND CUDA_NVCC_FLAGS "-std=c++11")
 

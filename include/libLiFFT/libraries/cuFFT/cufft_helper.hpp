@@ -16,10 +16,14 @@
  
 #pragma once
 
-#include <cuda.h>
-#include <cuda_runtime_api.h>
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wold-style-cast"
+#include <cuda_runtime.h>
 #include <cufft.h>
+#pragma GCC diagnostic pop
+
 #include <sstream>
+#include <stdexcept>
 
 #ifndef CUDA_DISABLE_ERROR_CHECKING
 #define CHECK_ERROR(ans) ::LiFFT::libraries::cuFFT::check_cuda((ans), "", #ans, __FILE__, __LINE__)
@@ -99,6 +103,9 @@ namespace cuFFT {
 
         case CUFFT_INCOMPLETE_PARAMETER_LIST:
             return "CUFFT_INCOMPLETE_PARAMETER_LIST";
+
+        case CUFFT_NOT_SUPPORTED:
+            return "CUFFT_NOT_SUPPORTED";
         }
         return "<unknown>";
     }
@@ -112,11 +119,13 @@ namespace cuFFT {
     }
     inline
     void check_cuda(cufftResult code, const char* /*msg*/,  const char *func, const char *file, int line) {
+
         if (code != CUFFT_SUCCESS) {
             throw_error(static_cast<int>(code),
                         cufftResultToString(code), "cufft", func, file, line);
         }
     }
+
 } // CuFFT
 } // libraries
 } // LiFFT

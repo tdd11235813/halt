@@ -43,7 +43,7 @@ namespace LiFFTTest {
     }
 
     using boost::mpl::int_;
-    using SliceViewArgs = boost::mpl::list<int_<0>, int_<1>, int_<2>>;
+    using SliceViewArgs = boost::mpl::list< int_<0>, int_<1>, int_<2> >;
 
     BOOST_AUTO_TEST_CASE_TEMPLATE(SliceView, T_FixedDim, SliceViewArgs)
     {
